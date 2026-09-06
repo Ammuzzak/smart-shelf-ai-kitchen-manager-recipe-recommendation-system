@@ -1,0 +1,7 @@
+{
+  "name": "Smart Shelf – AI Kitchen Manager",
+  "description": "AI-powered kitchen manager & recipe recommendation system featuring live inventory calibration, smart expiry alerts, South Indian recipe hub, waste analytics, and Hey Chef voice cooking assistant.",
+  "requestFramePermissions": ["microphone"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
+
