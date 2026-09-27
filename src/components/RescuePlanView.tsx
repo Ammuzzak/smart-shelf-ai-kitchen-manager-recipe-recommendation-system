@@ -1,17 +1,14 @@
 import React, { useState } from 'react';
-import { Calendar, TrendingUp, Sparkles, ChevronRight, ShieldCheck, Clock } from 'lucide-react';
+import { TrendingUp, ChevronRight } from 'lucide-react';
 import { useKitchen } from '../context/KitchenContext';
-import { DailyMealRescue } from '../types';
 
 export const RescuePlanView: React.FC = () => {
   const {
     dailySchedule,
     recipes,
     setActiveRecipe,
-    setActiveCookingRecipe,
     setSelectedRecipeForDetail,
     setIsRecipeDetailOpen,
-    setActiveScreen,
   } = useKitchen();
 
   const [selectedDate, setSelectedDate] = useState('Wed 14');
@@ -37,7 +34,7 @@ export const RescuePlanView: React.FC = () => {
 
   return (
     <div className="space-y-6 pb-20">
-      {/* 1. Date Selector Bar (Image 3) */}
+      {/* 1. Date Selector Bar */}
       <div className="p-4 rounded-2xl bg-[#1c2529] border border-white/10 flex items-center gap-3 overflow-x-auto scrollbar-none">
         {dates.map((d) => {
           const key = `${d.day} ${d.num}`;
@@ -46,7 +43,7 @@ export const RescuePlanView: React.FC = () => {
             <button
               key={key}
               onClick={() => setSelectedDate(key)}
-              className={`flex flex-col items-center py-2.5 px-4 rounded-xl min-w-[70px] transition-all ${
+              className={`flex flex-col items-center py-2.5 px-4 rounded-xl min-w-[70px] transition-all cursor-pointer ${
                 isSelected
                   ? 'bg-[#a1e3f9] text-[#003642] font-bold shadow-md shadow-[#a1e3f9]/20'
                   : 'bg-[#151d20] text-[#bfc8cc] hover:text-white border border-white/5'
@@ -59,19 +56,19 @@ export const RescuePlanView: React.FC = () => {
         })}
       </div>
 
-      {/* 2. Top Stats: Rescue Impact + Kitchen Health Ring (Image 3) */}
+      {/* 2. Top Stats: Food Saved + Food Health Ring */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* Rescue Impact Card */}
+        {/* Food Saved Card */}
         <div className="p-5 rounded-2xl bg-[#1c2529] border border-white/10 flex items-center justify-between">
           <div className="space-y-1">
-            <span className="text-xs font-bold text-[#a1e3f9] uppercase tracking-wider">Rescue Impact ({selectedDate})</span>
+            <span className="text-xs font-bold text-[#a1e3f9] uppercase tracking-wider">Food Saved ({selectedDate})</span>
             <div className="flex items-baseline gap-4 pt-1">
               <div>
-                <p className="text-[10px] text-[#8e989b]">Waste Saved</p>
+                <p className="text-[10px] text-[#8e989b]">Food Saved</p>
                 <p className="font-display text-2xl font-extrabold text-emerald-400">{currentDayStats.waste}</p>
               </div>
               <div className="border-l border-white/10 pl-4">
-                <p className="text-[10px] text-[#8e989b]">Saved Value</p>
+                <p className="text-[10px] text-[#8e989b]">Money Saved</p>
                 <p className="font-display text-2xl font-extrabold text-[#ffb780]">{currentDayStats.saved}</p>
               </div>
             </div>
@@ -81,12 +78,12 @@ export const RescuePlanView: React.FC = () => {
           </div>
         </div>
 
-        {/* Kitchen Health Card */}
+        {/* Food Health Card */}
         <div className="p-5 rounded-2xl bg-[#1c2529] border border-white/10 flex items-center justify-between">
           <div className="space-y-1">
-            <span className="text-xs font-bold text-[#8e989b] uppercase tracking-wider">Kitchen Health</span>
-            <h3 className="font-display text-sm font-bold text-white">Pantry optimizing at high efficiency</h3>
-            <p className="text-[11px] text-[#8e989b]">Predicted zero spoilage for {selectedDate}</p>
+            <span className="text-xs font-bold text-[#8e989b] uppercase tracking-wider">Food Health</span>
+            <h3 className="font-display text-sm font-bold text-white">Food storage in great condition</h3>
+            <p className="text-[11px] text-[#8e989b]">No food wasted on {selectedDate}</p>
           </div>
 
           <div className="relative w-16 h-16 flex items-center justify-center">
@@ -109,12 +106,12 @@ export const RescuePlanView: React.FC = () => {
         </div>
       </div>
 
-      {/* 3. Daily Rescue Schedule Meals (Image 3) */}
+      {/* 3. Daily Rescue Schedule Meals */}
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <div>
-            <h3 className="font-display text-base font-bold text-white">Daily Rescue Schedule</h3>
-            <p className="text-xs text-[#8e989b]">Three planned meals targeted to salvage urgent produce</p>
+            <h3 className="font-display text-base font-bold text-white">Daily Meal Plan</h3>
+            <p className="text-xs text-[#8e989b]">Three planned meals to use food before it expires</p>
           </div>
           <span className="text-xs font-mono font-medium px-2.5 py-1 rounded-full bg-[#1c2529] text-[#a1e3f9] border border-white/5">
             {selectedDate}
@@ -127,7 +124,10 @@ export const RescuePlanView: React.FC = () => {
               key={meal.id}
               className="p-5 rounded-2xl bg-[#1c2529] border border-white/10 hover:border-white/20 transition-all flex flex-col md:flex-row items-start md:items-center justify-between gap-4"
             >
-              <div className="flex items-center gap-4">
+              <div
+                onClick={() => handleOpenRecipe(meal.recipeId)}
+                className="flex items-center gap-4 cursor-pointer"
+              >
                 <img
                   src={meal.image}
                   alt={meal.title}
@@ -138,7 +138,9 @@ export const RescuePlanView: React.FC = () => {
                   <span className="text-[11px] font-bold text-[#ffb780] uppercase tracking-wider">
                     {meal.mealType}
                   </span>
-                  <h4 className="font-display text-base font-bold text-white">{meal.title}</h4>
+                  <h4 className="font-display text-base font-bold text-white hover:text-[#a1e3f9] transition-colors">
+                    {meal.title}
+                  </h4>
                   <p className="text-xs text-[#8e989b] line-clamp-1">{meal.subtitle}</p>
 
                   <div className="flex flex-wrap gap-1.5 pt-1">
@@ -151,7 +153,7 @@ export const RescuePlanView: React.FC = () => {
                             : 'bg-[#ffb780]/15 text-[#ffb780] border border-[#ffb780]/20'
                         }`}
                       >
-                        Rescued: {ing.name}
+                        Uses: {ing.name}
                       </span>
                     ))}
                   </div>

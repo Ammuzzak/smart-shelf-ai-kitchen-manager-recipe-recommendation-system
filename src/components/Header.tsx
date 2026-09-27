@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   Bell,
   Search,
@@ -10,6 +10,7 @@ import {
   RotateCcw,
 } from 'lucide-react';
 import { useKitchen } from '../context/KitchenContext';
+import { matchRecipesWithInput } from '../data/recipeMatching';
 
 export const Header: React.FC = () => {
   const {
@@ -36,39 +37,46 @@ export const Header: React.FC = () => {
 
   const unreadCount = notifications.filter((n) => !n.read).length;
 
-  const filteredSearchResults = searchQuery.trim()
-    ? [
-        ...inventory
-          .filter((i) => i.name.toLowerCase().includes(searchQuery.toLowerCase()))
-          .map((i) => ({ type: 'inventory' as const, item: i, title: i.name, sub: `${i.quantity} ${i.unit} in ${i.location}` })),
-        ...recipes
-          .filter((r) => r.title.toLowerCase().includes(searchQuery.toLowerCase()) || r.cuisine.toLowerCase().includes(searchQuery.toLowerCase()))
-          .map((r) => ({ type: 'recipe' as const, recipe: r, title: r.title, sub: `${r.cuisine} • Rescues ${r.rescueWeight}` })),
-      ]
-    : [];
+  const filteredSearchResults = useMemo(() => {
+    if (!searchQuery.trim()) return [];
+    const invMatches = inventory
+      .filter((i) => i.name.toLowerCase().includes(searchQuery.toLowerCase()))
+      .map((i) => ({ type: 'inventory' as const, item: i, title: i.name, sub: `${i.quantity} ${i.unit} in ${i.location}` }));
+
+    const recipeResults = matchRecipesWithInput(searchQuery, recipes, inventory);
+    const combined = [...recipeResults.canMakeNow, ...recipeResults.almostReady];
+    const recipeMatches = combined.slice(0, 5).map(({ recipe, matchPercentage }) => ({
+      type: 'recipe' as const,
+      recipe,
+      title: recipe.title,
+      sub: `${matchPercentage}% Match • ${recipe.cuisine}`,
+    }));
+
+    return [...invMatches.slice(0, 3), ...recipeMatches];
+  }, [searchQuery, inventory, recipes]);
 
   const getScreenTitle = () => {
     switch (activeScreen) {
       case 'dashboard':
-        return 'Kitchen Overview';
+        return 'Dashboard';
       case 'inventory':
-        return 'Live Inventory Calibration';
+        return 'My Food';
       case 'shopping-list':
-        return 'Smart Shopping List';
+        return 'Smart Shopping';
       case 'rescue':
-        return 'Daily Food Rescue Plan';
+        return 'Rescue Plan';
       case 'recipes':
-        return 'South Indian Recipe Hub';
+        return 'Recipe Hub';
       case 'live-cooking':
-        return 'Live Cooking Session';
+        return 'Live Cooking';
       case 'analytics':
-        return 'Waste Pattern Analyzer';
+        return 'Food Waste';
       case 'community':
-        return 'Community Rescue Hub';
+        return 'Community';
       case 'profile':
-        return 'Kitchen Master Profile';
+        return 'Kitchen Profile';
       default:
-        return 'Kitchen OS';
+        return 'Kitchen';
     }
   };
 
@@ -79,11 +87,11 @@ export const Header: React.FC = () => {
         <div className="flex items-center gap-3">
           <div className="lg:hidden flex items-center gap-2">
             <span className="font-display font-black text-sm tracking-wider text-[#a1e3f9]">SMART SHELF</span>
-            <span className="text-[10px] text-[#8e989b] font-mono">OS V2.4</span>
+            <span className="text-[10px] text-[#8e989b] font-mono">v2.4</span>
           </div>
 
           <div className="hidden lg:flex items-center gap-2 text-xs text-[#8e989b]">
-            <span>Kitchen OS</span>
+            <span>Kitchen</span>
             <ChevronRight className="w-3.5 h-3.5" />
             <span className="text-white font-medium">{getScreenTitle()}</span>
           </div>
@@ -95,7 +103,7 @@ export const Header: React.FC = () => {
             <Search className="w-3.5 h-3.5 text-[#8e989b]" />
             <input
               type="text"
-              placeholder="Search pantry or recipes..."
+              placeholder="Search food or recipes..."
               value={searchQuery}
               onChange={(e) => {
                 setSearchQuery(e.target.value);
@@ -181,7 +189,7 @@ export const Header: React.FC = () => {
                 <div className="flex items-center justify-between pb-2 border-b border-white/10">
                   <div className="flex items-center gap-2">
                     <span className="font-display text-xs font-bold text-white uppercase tracking-wider">
-                      Alerts & Telemetry
+                      Notifications & Alerts
                     </span>
                     {unreadCount > 0 && (
                       <span className="text-[10px] px-1.5 py-0.5 rounded bg-rose-500/20 text-rose-300 font-mono font-bold">
@@ -202,7 +210,7 @@ export const Header: React.FC = () => {
                 <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
                   {notifications.length === 0 ? (
                     <div className="py-6 text-center text-xs text-[#8e989b]">
-                      No active alerts. All shelf items optimal!
+                      No active alerts. All food is fresh!
                     </div>
                   ) : (
                     notifications.map((notif) => (
@@ -234,8 +242,8 @@ export const Header: React.FC = () => {
                 </div>
 
                 <div className="pt-2 border-t border-white/10 flex items-center justify-between text-[11px] text-[#8e989b]">
-                  <span>IoT Sensors: 4 Connected</span>
-                  <span className="text-emerald-400 font-medium">Auto-Sync On</span>
+                  <span>Kitchen Sensors: 4 Connected</span>
+                  <span className="text-emerald-400 font-medium">Live Sync</span>
                 </div>
               </div>
             )}

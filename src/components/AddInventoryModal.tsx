@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Sparkles, Plus, Minus, Camera, Calendar, Check, AlertCircle } from 'lucide-react';
+import { X, Sparkles, Plus, Minus, Camera, Check } from 'lucide-react';
 import { useKitchen } from '../context/KitchenContext';
 import { FoodCategory } from '../types';
 
@@ -11,7 +11,7 @@ export const AddInventoryModal: React.FC = () => {
   const [quantity, setQuantity] = useState(1);
   const [unit, setUnit] = useState('Bunch');
   const [expiryDays, setExpiryDays] = useState(4);
-  const [location, setLocation] = useState('Crisper Hydrator');
+  const [location, setLocation] = useState('Vegetable Drawer');
 
   if (!isAddModalOpen) return null;
 
@@ -32,12 +32,17 @@ export const AddInventoryModal: React.FC = () => {
     } else if (itemName === 'Tomatoes' || itemName === 'Spinach') {
       setCategory('Produce');
       setUnit(itemName === 'Spinach' ? 'Bunch' : 'kg');
-      setLocation('Crisper Hydrator');
+      setLocation('Vegetable Drawer');
       setExpiryDays(4);
+    } else if (itemName === 'Coconut') {
+      setCategory('Produce');
+      setUnit('Whole');
+      setLocation('Vegetable Drawer');
+      setExpiryDays(2);
     } else if (itemName === 'Toor Dal') {
-      setCategory('Staples');
+      setCategory('Basic Foods');
       setUnit('kg');
-      setLocation('Shelf B • Jar 04');
+      setLocation('Food Storage Shelf');
       setExpiryDays(60);
     }
   };
@@ -71,12 +76,12 @@ export const AddInventoryModal: React.FC = () => {
         {/* Header */}
         <div className="flex items-center justify-between pb-3 border-b border-white/10">
           <div>
-            <h2 className="font-display text-lg font-bold text-white">Add Inventory</h2>
-            <p className="text-xs text-[#8e989b]">Log fresh ingredients or barcode scan</p>
+            <h2 className="font-display text-lg font-bold text-white">Add Food Item</h2>
+            <p className="text-xs text-[#8e989b]">Add fresh items or scan a receipt</p>
           </div>
           <button
             onClick={() => setIsAddModalOpen(false)}
-            className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 text-[#bfc8cc] hover:text-white flex items-center justify-center transition-all"
+            className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 text-[#bfc8cc] hover:text-white flex items-center justify-center transition-all cursor-pointer"
           >
             <X className="w-4 h-4" />
           </button>
@@ -85,7 +90,7 @@ export const AddInventoryModal: React.FC = () => {
         {/* Quick Item Chips */}
         <div>
           <label className="block text-xs font-semibold text-[#8e989b] uppercase tracking-wider mb-2">
-            Quick Select Common Items
+            Quick Select Common Foods
           </label>
           <div className="flex flex-wrap gap-1.5">
             {quickItemChips.map((chip) => (
@@ -93,7 +98,7 @@ export const AddInventoryModal: React.FC = () => {
                 key={chip}
                 type="button"
                 onClick={() => handleSelectChip(chip)}
-                className={`px-3 py-1 rounded-full text-xs font-medium transition-all ${
+                className={`px-3 py-1 rounded-full text-xs font-medium transition-all cursor-pointer ${
                   name === chip
                     ? 'bg-[#a1e3f9] text-[#003642] font-semibold'
                     : 'bg-[#151d20] text-[#bfc8cc] hover:text-white border border-white/5'
@@ -107,12 +112,12 @@ export const AddInventoryModal: React.FC = () => {
 
         {/* Item Name Input */}
         <div>
-          <label className="block text-xs font-semibold text-[#8e989b] mb-1.5">Item Name</label>
+          <label className="block text-xs font-semibold text-[#8e989b] mb-1.5">Food Name</label>
           <input
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="e.g. Organic Spinach"
+            placeholder="e.g. Fresh Tomatoes"
             className="w-full px-3.5 py-2.5 rounded-xl bg-[#151d20] border border-white/10 text-white text-xs placeholder-[#5a6568] focus:border-[#a1e3f9] outline-none"
           />
         </div>
@@ -124,32 +129,32 @@ export const AddInventoryModal: React.FC = () => {
             <select
               value={category}
               onChange={(e) => setCategory(e.target.value as FoodCategory)}
-              className="w-full px-3 py-2 rounded-xl bg-[#151d20] border border-white/10 text-white text-xs focus:border-[#a1e3f9] outline-none"
+              className="w-full px-3 py-2 rounded-xl bg-[#151d20] border border-white/10 text-white text-xs focus:border-[#a1e3f9] outline-none cursor-pointer"
             >
               <option value="Produce">Produce</option>
               <option value="Dairy">Dairy</option>
-              <option value="Staples">Staples</option>
+              <option value="Basic Foods">Basic Foods</option>
               <option value="Lentils & Spices">Lentils & Spices</option>
               <option value="Oils">Oils</option>
-              <option value="Condiments">Condiments</option>
+              <option value="Sauces & Spreads">Sauces & Spreads</option>
               <option value="Bakery">Bakery</option>
             </select>
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-[#8e989b] mb-1.5">Storage Bay</label>
+            <label className="block text-xs font-semibold text-[#8e989b] mb-1.5">Storage Location</label>
             <select
               value={location}
               onChange={(e) => setLocation(e.target.value)}
-              className="w-full px-3 py-2 rounded-xl bg-[#151d20] border border-white/10 text-white text-xs focus:border-[#a1e3f9] outline-none"
+              className="w-full px-3 py-2 rounded-xl bg-[#151d20] border border-white/10 text-white text-xs focus:border-[#a1e3f9] outline-none cursor-pointer"
             >
-              <option value="Crisper Hydrator">Crisper Hydrator</option>
-              <option value="Shelf A • Bottle">Shelf A • Bottle</option>
-              <option value="Shelf B • Jar 04">Shelf B • Jar 04</option>
+              <option value="Vegetable Drawer">Vegetable Drawer</option>
+              <option value="Fridge Shelf">Fridge Shelf</option>
+              <option value="Fridge Door">Fridge Door</option>
               <option value="Dairy Chiller">Dairy Chiller</option>
-              <option value="Pantry Bin 01">Pantry Bin 01</option>
-              <option value="Spice Box 01">Spice Box 01</option>
-              <option value="Freezer Bay">Freezer Bay</option>
+              <option value="Food Storage Shelf">Food Storage Shelf</option>
+              <option value="Spice Box">Spice Box</option>
+              <option value="Freezer">Freezer</option>
             </select>
           </div>
         </div>
@@ -162,7 +167,7 @@ export const AddInventoryModal: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setQuantity((q) => Math.max(0.5, +(q - 0.5).toFixed(1)))}
-                className="w-8 h-8 rounded-lg bg-[#252f33] hover:bg-[#323d42] text-white flex items-center justify-center text-xs font-bold"
+                className="w-8 h-8 rounded-lg bg-[#252f33] hover:bg-[#323d42] text-white flex items-center justify-center text-xs font-bold cursor-pointer"
               >
                 <Minus className="w-3.5 h-3.5" />
               </button>
@@ -170,7 +175,7 @@ export const AddInventoryModal: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setQuantity((q) => +(q + 0.5).toFixed(1))}
-                className="w-8 h-8 rounded-lg bg-[#252f33] hover:bg-[#323d42] text-[#a1e3f9] flex items-center justify-center text-xs font-bold"
+                className="w-8 h-8 rounded-lg bg-[#252f33] hover:bg-[#323d42] text-[#a1e3f9] flex items-center justify-center text-xs font-bold cursor-pointer"
               >
                 <Plus className="w-3.5 h-3.5" />
               </button>
@@ -182,7 +187,7 @@ export const AddInventoryModal: React.FC = () => {
             <select
               value={unit}
               onChange={(e) => setUnit(e.target.value)}
-              className="w-full px-3 py-2.5 rounded-xl bg-[#151d20] border border-white/10 text-white text-xs focus:border-[#a1e3f9] outline-none"
+              className="w-full px-3 py-2.5 rounded-xl bg-[#151d20] border border-white/10 text-white text-xs focus:border-[#a1e3f9] outline-none cursor-pointer"
             >
               <option value="Bunch">Bunch</option>
               <option value="g">Grams (g)</option>
@@ -198,7 +203,7 @@ export const AddInventoryModal: React.FC = () => {
         {/* Estimated Expiry Days */}
         <div>
           <div className="flex items-center justify-between mb-1.5">
-            <label className="text-xs font-semibold text-[#8e989b]">Estimated Expiry Window</label>
+            <label className="text-xs font-semibold text-[#8e989b]">Expires in</label>
             <span className="text-xs font-mono font-bold text-[#ffb780]">{expiryDays} days</span>
           </div>
           <input
@@ -211,13 +216,13 @@ export const AddInventoryModal: React.FC = () => {
           />
         </div>
 
-        {/* Smart Purchase Recommendation Box (Exact from Image 11) */}
+        {/* Helpful Tip */}
         <div className="p-3.5 rounded-xl bg-[#151d20] border border-[#a1e3f9]/20 flex items-start gap-3">
           <Sparkles className="w-4 h-4 text-[#a1e3f9] shrink-0 mt-0.5" />
           <div className="text-xs">
-            <p className="font-semibold text-white">Smart Purchase Recommendation</p>
+            <p className="font-semibold text-white">Smart Recommendation</p>
             <p className="text-[#8e989b] mt-0.5 leading-relaxed">
-              Based on your cooking patterns, we recommend buying only 500g of {name} to prevent waste.
+              Based on your cooking habits, using {name} within {expiryDays} days will keep it fresh and delicious.
             </p>
           </div>
         </div>
@@ -226,7 +231,7 @@ export const AddInventoryModal: React.FC = () => {
         <p className="text-xs text-center text-[#8e989b]">
           Adding <strong className="text-white">{quantity} {unit}</strong> of{' '}
           <strong className="text-[#a1e3f9]">{name}</strong> to{' '}
-          <strong className="text-white">{category}</strong>
+          <strong className="text-white">{location}</strong>
         </p>
 
         {/* Bottom Actions */}
@@ -234,12 +239,15 @@ export const AddInventoryModal: React.FC = () => {
           <button
             type="button"
             onClick={() => {
-              setName('Organic Spinach');
+              setName('Country Tomatoes');
+              setCategory('Produce');
               setQuantity(1);
-              setUnit('Bunch');
-              setToastMessage('Receipt scanned! Detected 1x Organic Spinach, 1x Country Tomatoes.');
+              setUnit('kg');
+              setLocation('Vegetable Drawer');
+              setExpiryDays(4);
+              setToastMessage('Scanned receipt! Detected 1kg Country Tomatoes.');
             }}
-            className="py-2.5 px-3 rounded-xl bg-[#232b2e] hover:bg-[#2c363a] text-white border border-white/10 font-semibold text-xs flex items-center justify-center gap-1.5 transition-all"
+            className="py-2.5 px-3 rounded-xl bg-[#232b2e] hover:bg-[#2c363a] text-white border border-white/10 font-semibold text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer"
           >
             <Camera className="w-3.5 h-3.5 text-[#ffb780]" />
             <span>Scan Receipt</span>
@@ -248,10 +256,10 @@ export const AddInventoryModal: React.FC = () => {
           <button
             type="button"
             onClick={handleSave}
-            className="py-2.5 px-3 rounded-xl bg-[#a1e3f9] hover:bg-[#c2effc] text-[#003642] font-bold text-xs flex items-center justify-center gap-1.5 transition-all shadow-md shadow-[#a1e3f9]/15"
+            className="py-2.5 px-3 rounded-xl bg-[#a1e3f9] hover:bg-[#c2effc] text-[#003642] font-bold text-xs flex items-center justify-center gap-1.5 transition-all shadow-md shadow-[#a1e3f9]/15 cursor-pointer"
           >
             <Check className="w-4 h-4" />
-            <span>Add to Shelf</span>
+            <span>Add to My Food</span>
           </button>
         </div>
       </div>

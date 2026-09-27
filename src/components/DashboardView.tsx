@@ -17,6 +17,8 @@ import {
 } from 'lucide-react';
 import { useKitchen } from '../context/KitchenContext';
 
+import { matchRecipesWithInventory } from '../data/recipeMatching';
+
 export const DashboardView: React.FC = () => {
   const {
     inventory,
@@ -32,12 +34,17 @@ export const DashboardView: React.FC = () => {
     lastCompletedSession,
   } = useKitchen();
 
-  const handleStartPaniyaram = () => {
-    const paniyaramRecipe = recipes.find((r) => r.id === 'kara-kuzhi-paniyaram') || recipes[1];
-    setActiveRecipe(paniyaramRecipe);
-    setActiveCookingRecipe(paniyaramRecipe);
-    setActiveCookingStep(1);
-    setActiveScreen('live-cooking');
+  // Find best 100% ready recipe for user's inventory
+  const splitResults = React.useMemo(() => matchRecipesWithInventory(inventory, recipes), [inventory, recipes]);
+  const featuredRecipe = splitResults.canMakeNow[0]?.recipe || splitResults.almostReady[0]?.recipe || recipes[0];
+
+  const handleStartFeatured = () => {
+    if (featuredRecipe) {
+      setActiveRecipe(featuredRecipe);
+      setActiveCookingRecipe(featuredRecipe);
+      setActiveCookingStep(1);
+      setActiveScreen('live-cooking');
+    }
   };
 
   const handleOpenCompletedRecipe = () => {
@@ -53,8 +60,8 @@ export const DashboardView: React.FC = () => {
 
   // Top at-risk items & dynamic shelf score
   const urgentItems = inventory.filter((i) => i.atRisk || i.daysLeft <= 2);
-  const rescuedItems = inventory.filter((i) => i.usedAmountNote && i.usedAmountNote.toLowerCase().includes('rescued'));
-  const activeUrgentItems = urgentItems.filter((i) => (!i.usedAmountNote || !i.usedAmountNote.toLowerCase().includes('rescued')) && i.quantity > 0);
+  const rescuedItems = inventory.filter((i) => i.usedAmountNote && (i.usedAmountNote.toLowerCase().includes('rescued') || i.usedAmountNote.toLowerCase().includes('used in')));
+  const activeUrgentItems = urgentItems.filter((i) => (!i.usedAmountNote || (!i.usedAmountNote.toLowerCase().includes('rescued') && !i.usedAmountNote.toLowerCase().includes('used in'))) && i.quantity > 0);
 
   const displaySaveFoodList: {
     id: string;
@@ -103,11 +110,11 @@ export const DashboardView: React.FC = () => {
     displaySaveFoodList.push({
       id: item.id,
       name: item.name,
-      qtyText: item.usedAmountNote ? item.usedAmountNote.replace('Rescued in ', '') : `Rescued ${item.unit}`,
-      badgeText: '✓ Rescued',
+      qtyText: item.usedAmountNote ? item.usedAmountNote.replace(/^(Rescued in |Used in )/, '') : `Used ${item.unit}`,
+      badgeText: '✓ Used',
       isRescued: true,
       urgencyColor: 'emerald',
-      note: item.usedAmountNote || 'Rescued in cooking session',
+      note: item.usedAmountNote || 'Used in cooking session',
     });
   });
 
@@ -124,7 +131,7 @@ export const DashboardView: React.FC = () => {
           badgeText: `${item.daysLeft}d left`,
           isRescued: false,
           urgencyColor: item.daysLeft <= 3 ? 'amber' : 'emerald',
-          note: item.daysLeft <= 3 ? 'Use in meal plan' : 'Fresh & optimal',
+          note: item.daysLeft <= 3 ? 'Use in meal plan' : 'Fresh & good',
           actionLabel: 'Details →',
           actionHandler: () => setActiveScreen('inventory'),
         });
@@ -162,7 +169,7 @@ export const DashboardView: React.FC = () => {
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <span className="font-display font-bold text-white text-base">Kitchen Dock</span>
+              <span className="font-display font-bold text-white text-base">Kitchen</span>
               <span className="text-[11px] px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 font-medium">
                 Connected
               </span>
@@ -171,46 +178,62 @@ export const DashboardView: React.FC = () => {
           </div>
         </div>
 
-        {/* 4 Sensor readings */}
+        {/* 4 Sensor readings - all interactive */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 w-full lg:w-auto">
-          <div className="p-2.5 rounded-xl bg-[#1c2529] border border-white/5 flex items-center gap-2">
+          <button
+            onClick={() => setToastMessage('Fridge Temperature: 3.8°C (Optimal Cold Storage)')}
+            className="p-2.5 rounded-xl bg-[#1c2529] hover:bg-[#252f33] border border-white/5 flex items-center gap-2 text-left transition-all"
+            title="Click to check Fridge Temperature"
+          >
             <Thermometer className="w-4 h-4 text-[#a1e3f9]" />
             <div>
               <p className="text-[10px] text-[#8e989b]">Fridge Bay 1</p>
               <p className="text-xs font-bold text-white font-mono">3.8°C</p>
             </div>
-          </div>
-          <div className="p-2.5 rounded-xl bg-[#1c2529] border border-white/5 flex items-center gap-2">
+          </button>
+          <button
+            onClick={() => setToastMessage('Crisper Humidity: 64% (Ideal for Leafy Greens & Produce)')}
+            className="p-2.5 rounded-xl bg-[#1c2529] hover:bg-[#252f33] border border-white/5 flex items-center gap-2 text-left transition-all"
+            title="Click to check Humidity"
+          >
             <Droplets className="w-4 h-4 text-[#a1e3f9]" />
             <div>
               <p className="text-[10px] text-[#8e989b]">Crisper Hum</p>
               <p className="text-xs font-bold text-white font-mono">64%</p>
             </div>
-          </div>
-          <div className="p-2.5 rounded-xl bg-[#1c2529] border border-white/5 flex items-center gap-2">
+          </button>
+          <button
+            onClick={() => setToastMessage('Shelf Weight: 18.4 kg Total Active Food Load')}
+            className="p-2.5 rounded-xl bg-[#1c2529] hover:bg-[#252f33] border border-white/5 flex items-center gap-2 text-left transition-all"
+            title="Click to check Shelf Load"
+          >
             <Scale className="w-4 h-4 text-[#ffb780]" />
             <div>
               <p className="text-[10px] text-[#8e989b]">Shelf Load</p>
               <p className="text-xs font-bold text-white font-mono">18.4 kg</p>
             </div>
-          </div>
-          <div className="p-2.5 rounded-xl bg-[#1c2529] border border-white/5 flex items-center gap-2">
+          </button>
+          <button
+            onClick={() => setToastMessage('Air Quality: 98 AQI (Clean and Healthy)')}
+            className="p-2.5 rounded-xl bg-[#1c2529] hover:bg-[#252f33] border border-white/5 flex items-center gap-2 text-left transition-all"
+            title="Click to check Air Quality"
+          >
             <Wind className="w-4 h-4 text-emerald-400" />
             <div>
               <p className="text-[10px] text-[#8e989b]">Air Quality</p>
               <p className="text-xs font-bold text-emerald-400 font-mono">98 AQI</p>
             </div>
-          </div>
+          </button>
         </div>
       </div>
 
-      {/* 2. Top Row: Shelf Health Gauge + Recent Saved Completion Banner */}
+      {/* 2. Top Row: Food Health Gauge + Recent Saved Completion Banner */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         {/* Circular Health Gauge Card */}
         <div className="p-5 rounded-2xl bg-[#1c2529] border border-white/10 flex flex-col justify-between relative overflow-hidden">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-xs font-bold text-[#8e989b] uppercase tracking-wider">Shelf Health Score</p>
+              <p className="text-xs font-bold text-[#8e989b] uppercase tracking-wider">Food Health Score</p>
               <h3 className="font-display text-xl font-bold text-white">Optimal Peak</h3>
             </div>
             <span className="text-xs px-2.5 py-1 rounded-full bg-[#a1e3f9]/15 text-[#a1e3f9] font-mono font-semibold">
@@ -246,23 +269,20 @@ export const DashboardView: React.FC = () => {
           <div className="p-3 rounded-xl bg-[#232b2e] border border-white/5 flex items-center gap-2.5 text-xs">
             <AlertTriangle className="w-4 h-4 text-[#ffb780] shrink-0" />
             <p className="text-[#dbe4e8]">
-              <strong className="text-white">
-                {urgentItems.length} item{urgentItems.length === 1 ? '' : 's'} need{urgentItems.length === 1 ? 's' : ''} rescue
-              </strong>{' '}
-              • Tonight & Tomorrow morning
+              <strong className="text-white">Use these foods soon</strong>
             </p>
           </div>
         </div>
 
-        {/* Saved to Log Banner & Live Cooking Shortcut */}
+        {/* Saved Banner & Live Cooking Shortcut */}
         <div className="lg:col-span-2 p-5 rounded-2xl bg-[#1c2529] border border-emerald-500/20 flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
                 <span className="px-2.5 py-1 rounded-md bg-emerald-500/20 text-emerald-400 font-mono text-xs font-bold uppercase tracking-wider">
-                  Saved To Log
+                  Saved
                 </span>
-                <span className="text-xs text-[#8e989b]">Scale Auto-Calibrated</span>
+                <span className="text-xs text-[#8e989b]">Quantity Updated</span>
               </div>
               <button
                 onClick={handleOpenCompletedRecipe}
@@ -277,12 +297,12 @@ export const DashboardView: React.FC = () => {
               {lastCompletedSession ? `${lastCompletedSession.title} Completed!` : 'Tangy Tomato Rasam Completed!'}
             </h2>
             <p className="text-xs text-[#bfc8cc] leading-relaxed mb-4">
-              {lastCompletedSession ? lastCompletedSession.rescuedItemsText : '4 items rescued (560g) • ₹185 saved • IoT scale and crisper pantry inventory auto-deducted accurately.'}
+              {lastCompletedSession ? lastCompletedSession.rescuedItemsText : 'Used 4 food items • 560g saved • ₹185 saved'}
             </p>
 
             <div className="grid grid-cols-3 gap-3 p-3 rounded-xl bg-[#151d20] border border-white/5 text-center">
               <div>
-                <p className="text-[10px] text-[#8e989b]">Food Rescued</p>
+                <p className="text-[10px] text-[#8e989b]">Food Saved</p>
                 <p className="text-sm font-bold text-emerald-400 font-mono">{lastCompletedSession?.rescueWeight || '560g'}</p>
               </div>
               <div>
@@ -290,8 +310,8 @@ export const DashboardView: React.FC = () => {
                 <p className="text-sm font-bold text-[#ffb780] font-mono">{lastCompletedSession?.moneySaved || '₹185'}</p>
               </div>
               <div>
-                <p className="text-[10px] text-[#8e989b]">IoT Calibration</p>
-                <p className="text-sm font-bold text-[#a1e3f9] font-mono">Auto-Deducted</p>
+                <p className="text-[10px] text-[#8e989b]">Quantity</p>
+                <p className="text-sm font-bold text-[#a1e3f9] font-mono">Automatically Removed</p>
               </div>
             </div>
           </div>
@@ -299,7 +319,7 @@ export const DashboardView: React.FC = () => {
           <div className="flex items-center justify-between pt-4 mt-2 border-t border-white/10">
             <div className="flex items-center gap-2 text-xs text-[#8e989b]">
               <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-              <span>{lastCompletedSession?.rescuedIngredientsNote || 'Coriander, Lemon & Overripe Tomatoes salvaged'}</span>
+              <span>{lastCompletedSession?.rescuedIngredientsNote || 'Used lemon and tomatoes before they went bad'}</span>
             </div>
             <button
               onClick={() => setActiveScreen('live-cooking')}
@@ -312,78 +332,82 @@ export const DashboardView: React.FC = () => {
         </div>
       </div>
 
-      {/* 3. Featured AI Suggestion: Crispy Kara Kuzhi Paniyaram (Image 9) */}
+      {/* 3. Featured Recipe Suggestion based on user food */}
       <div className="p-5 rounded-2xl bg-gradient-to-br from-[#1c2529] to-[#252f33] border border-[#a1e3f9]/20 relative overflow-hidden">
         <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
           <div className="flex items-center gap-2">
             <Sparkles className="w-4 h-4 text-[#a1e3f9]" />
-            <span className="text-xs font-bold text-[#a1e3f9] uppercase tracking-wider">AI Chef Suggestion</span>
-            <span className="text-[11px] px-2 py-0.5 rounded bg-white/10 text-white font-medium">
-              Tomorrow's Breakfast
+            <span className="text-xs font-bold text-[#a1e3f9] uppercase tracking-wider">Recipe Suggestion</span>
+            <span className="text-[11px] px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-medium">
+              100% Ready With Your Food
             </span>
           </div>
           <span className="text-xs text-[#8e989b] flex items-center gap-1">
-            <Clock className="w-3.5 h-3.5" /> 20 mins prep
+            <Clock className="w-3.5 h-3.5" /> {featuredRecipe.prepTime}
           </span>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 items-center">
           <div className="lg:col-span-2 space-y-2">
             <h3 className="font-display text-xl font-bold text-white">
-              Crispy Kara Kuzhi Paniyaram & Coconut Chutney
+              {featuredRecipe.title}
             </h3>
             <p className="text-xs text-[#bfc8cc] leading-relaxed">
-              Utilize remaining fermented batter (400ml) and grated coconut crisper stock before the 34-hour expiry mark.
-              Pair with freshly tempered mustard seeds and curry leaves.
+              {featuredRecipe.description}
             </p>
 
             <div className="flex flex-wrap gap-2 pt-2">
-              <span className="text-[11px] px-2.5 py-1 rounded-lg bg-[#2e373b] text-white border border-white/10 flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-rose-400" />
-                Batter: 34h left
-              </span>
-              <span className="text-[11px] px-2.5 py-1 rounded-lg bg-[#2e373b] text-white border border-white/10 flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-[#ffb780]" />
-                Coconut: 16h left
-              </span>
+              {featuredRecipe.availableIngredientsList && featuredRecipe.availableIngredientsList.length > 0 ? (
+                featuredRecipe.availableIngredientsList.slice(0, 4).map((ing, i) => (
+                  <span key={i} className="text-[11px] px-2.5 py-1 rounded-lg bg-[#2e373b] text-emerald-300 border border-white/10 flex items-center gap-1.5 font-medium">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400" />
+                    {ing}
+                  </span>
+                ))
+              ) : (
+                <span className="text-[11px] px-2.5 py-1 rounded-lg bg-[#2e373b] text-white border border-white/10 flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-[#ffb780]" />
+                  Uses fresh pantry items
+                </span>
+              )}
               <span className="text-[11px] px-2.5 py-1 rounded-lg bg-[#2e373b] text-emerald-300 border border-white/10">
-                Rescue Potential: 600g (₹140)
+                Food Saved: {featuredRecipe.rescueWeight} ({featuredRecipe.moneySaved})
               </span>
             </div>
           </div>
 
           <div className="flex lg:flex-col sm:flex-row flex-col gap-2.5 justify-end">
             <button
-              onClick={handleStartPaniyaram}
-              className="w-full py-2.5 px-4 rounded-xl bg-[#a1e3f9] hover:bg-[#c2effc] text-[#003642] font-bold text-xs flex items-center justify-center gap-2 transition-all shadow-md shadow-[#a1e3f9]/15"
+              onClick={handleStartFeatured}
+              className="w-full py-2.5 px-4 rounded-xl bg-[#a1e3f9] hover:bg-[#c2effc] text-[#003642] font-bold text-xs flex items-center justify-center gap-2 transition-all shadow-md shadow-[#a1e3f9]/15 cursor-pointer"
             >
               <span>Prep Steps & Cook</span>
               <ArrowRight className="w-4 h-4" />
             </button>
             <button
-              onClick={() => setActiveScreen('rescue')}
-              className="w-full py-2.5 px-4 rounded-xl bg-[#232b2e] hover:bg-[#2e373b] text-white border border-white/10 font-medium text-xs flex items-center justify-center gap-1 transition-all"
+              onClick={() => setActiveScreen('recipes')}
+              className="w-full py-2.5 px-4 rounded-xl bg-[#232b2e] hover:bg-[#2e373b] text-white border border-white/10 font-medium text-xs flex items-center justify-center gap-1 transition-all cursor-pointer"
             >
-              <span>Plan Breakfast Schedule</span>
+              <span>Explore All Recipes</span>
             </button>
           </div>
         </div>
       </div>
 
-      {/* 4. "Save This Food Today" Urgency Row (Image 9) */}
+      {/* 4. "Use Food Before It Expires" */}
       <div className="p-5 rounded-2xl bg-[#1c2529] border border-white/10 space-y-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <h3 className="font-display text-base font-bold text-white">Save This Food Today</h3>
+            <h3 className="font-display text-base font-bold text-white">Use Food Before It Expires</h3>
             <span className="text-xs px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-300 font-semibold font-mono">
-              {activeUrgentItems.length} Urgent • {rescuedItems.length} Rescued
+              {activeUrgentItems.length} Urgent • {rescuedItems.length} Used
             </span>
           </div>
           <button
             onClick={() => setActiveScreen('inventory')}
             className="text-xs font-semibold text-[#a1e3f9] hover:underline flex items-center gap-1"
           >
-            <span>View All Shelf Stock</span>
+            <span>View My Food</span>
             <ArrowRight className="w-3.5 h-3.5" />
           </button>
         </div>
@@ -437,12 +461,12 @@ export const DashboardView: React.FC = () => {
         </div>
       </div>
 
-      {/* 5. Live Inventory Touch Matrix & Calibration (Image 9 & 1) */}
+      {/* 5. My Food - Quick Update */}
       <div className="p-5 rounded-2xl bg-[#1c2529] border border-white/10 space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h3 className="font-display text-base font-bold text-white">Live Inventory Touch Matrix</h3>
-            <p className="text-xs text-[#8e989b]">Direct shelf scale calibration & quick portion deduction</p>
+            <h3 className="font-display text-base font-bold text-white">My Food - Quick Update</h3>
+            <p className="text-xs text-[#8e989b]">Quickly update food portions or add new food</p>
           </div>
 
           <div className="flex items-center gap-2">
@@ -451,18 +475,18 @@ export const DashboardView: React.FC = () => {
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#a1e3f9] hover:bg-[#c2effc] text-[#003642] text-xs font-bold transition-all"
             >
               <ScanLine className="w-3.5 h-3.5" />
-              <span>Quick Scan In</span>
+              <span>+ Quick Add</span>
             </button>
             <button
               onClick={() => setActiveScreen('inventory')}
               className="px-3 py-1.5 rounded-lg bg-[#232b2e] hover:bg-[#2c363a] text-white text-xs font-medium border border-white/10 transition-all"
             >
-              Full Inventory →
+              View My Food →
             </button>
           </div>
         </div>
 
-        {/* Matrix Grid */}
+        {/* Food Items Quick Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
           {inventory.slice(0, 6).map((item) => (
             <div
@@ -487,7 +511,7 @@ export const DashboardView: React.FC = () => {
                 </div>
               </div>
 
-              {/* Touch calibration buttons */}
+              {/* Touch buttons */}
               <div className="flex items-center gap-1 bg-[#1c2529] p-1 rounded-lg border border-white/10">
                 <button
                   onClick={() => adjustItemQuantity(item.id, -getDeltaForUnit(item.unit))}
@@ -509,20 +533,20 @@ export const DashboardView: React.FC = () => {
         </div>
       </div>
 
-      {/* 6. Weekly Rescue Impact Chart (Image 9) */}
+      {/* 6. Weekly Food Saved */}
       <div className="p-5 rounded-2xl bg-[#1c2529] border border-white/10 space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
-            <span className="text-xs font-bold text-[#a1e3f9] uppercase tracking-wider">October Milestone</span>
-            <h3 className="font-display text-lg font-bold text-white">Weekly Food Rescue Impact</h3>
+            <span className="text-xs font-bold text-[#a1e3f9] uppercase tracking-wider">Weekly Progress</span>
+            <h3 className="font-display text-lg font-bold text-white">Weekly Food Saved</h3>
           </div>
           <div className="flex items-center gap-4 text-xs font-mono">
             <div>
-              <span className="text-[#8e989b]">Rescued: </span>
+              <span className="text-[#8e989b]">Saved: </span>
               <strong className="text-emerald-400">14.2 kg</strong>
             </div>
             <div>
-              <span className="text-[#8e989b]">Saved: </span>
+              <span className="text-[#8e989b]">Money Saved: </span>
               <strong className="text-[#ffb780]">₹2,840</strong>
             </div>
           </div>
@@ -539,7 +563,11 @@ export const DashboardView: React.FC = () => {
             { day: 'Sat', kg: 2.1, height: '60%' },
             { day: 'Sun', kg: 1.3, height: '38%' },
           ].map((bar) => (
-            <div key={bar.day} className="flex-1 flex flex-col items-center gap-1.5 h-full justify-end group">
+            <button
+              key={bar.day}
+              onClick={() => setToastMessage(`${bar.day}: ${bar.kg}kg food saved`)}
+              className="flex-1 flex flex-col items-center gap-1.5 h-full justify-end group cursor-pointer"
+            >
               <span className="text-[10px] font-mono text-[#8e989b] opacity-0 group-hover:opacity-100 transition-opacity">
                 {bar.kg}kg
               </span>
@@ -552,17 +580,17 @@ export const DashboardView: React.FC = () => {
                 }`}
               />
               <span className="text-[11px] font-medium text-[#8e989b]">{bar.day}</span>
-            </div>
+            </button>
           ))}
         </div>
 
         <div className="flex items-center justify-between text-xs text-[#8e989b]">
-          <span>Peak savings achieved on Wednesday & Friday batch preparations</span>
+          <span>Best savings achieved on Wednesday & Friday</span>
           <button
             onClick={() => setActiveScreen('analytics')}
             className="text-[#a1e3f9] hover:underline font-semibold flex items-center gap-1"
           >
-            <span>Full Analytics Report</span>
+            <span>Full Food Waste Report</span>
             <ArrowRight className="w-3.5 h-3.5" />
           </button>
         </div>

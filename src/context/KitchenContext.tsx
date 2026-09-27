@@ -20,11 +20,20 @@ import {
   INITIAL_USER_SETTINGS,
 } from '../data/initialData';
 
+const loadStorage = <T,>(key: string, fallback: T): T => {
+  try {
+    const item = localStorage.getItem(key);
+    return item ? JSON.parse(item) : fallback;
+  } catch {
+    return fallback;
+  }
+};
+
 const INITIAL_NOTIFICATIONS: NotificationItem[] = [
   {
     id: 'notif-1',
     title: 'Urgent: Fermented Batter (34h left)',
-    message: 'High acidity risk detected in Crisper Shelf. AI recommends making Kara Paniyaram tomorrow breakfast.',
+    message: 'High acidity risk in Crisper Shelf. Make Kara Paniyaram for tomorrow breakfast.',
     time: '10m ago',
     type: 'alert',
     read: false,
@@ -32,8 +41,8 @@ const INITIAL_NOTIFICATIONS: NotificationItem[] = [
   },
   {
     id: 'notif-2',
-    title: 'IoT Crisper Scale Calibrated',
-    message: 'Weight auto-deducted 560g following Tangy Tomato Rasam cooking session. ₹185 saved.',
+    title: 'Quantity Updated',
+    message: 'Used 560g following Tangy Tomato Rasam cooking session. ₹185 saved.',
     time: '25m ago',
     type: 'success',
     read: false,
@@ -41,8 +50,8 @@ const INITIAL_NOTIFICATIONS: NotificationItem[] = [
   },
   {
     id: 'notif-3',
-    title: 'Smart Shopping Checklist',
-    message: '3 pantry staples verified. 2 fresh produce items needed for upcoming rescue meals.',
+    title: 'Shopping Checklist',
+    message: '3 basic foods checked. 2 fresh produce items needed for upcoming meals.',
     time: '1h ago',
     type: 'info',
     read: false,
@@ -112,132 +121,22 @@ interface KitchenContextType {
   completeCookingSession: (recipe: Recipe) => void;
 }
 
+import { calculateRecipeMatch } from '../data/recipeMatching';
+import { normalizeSingleIngredient } from '../data/ingredientNormalization';
+
 export const deriveRecipeWithInventory = (recipe: Recipe, inv: InventoryItem[]): Recipe => {
-  const invTerms = inv.filter((item) => item.quantity > 0);
+  const invStandards = inv
+    .filter((i) => i.quantity > 0)
+    .map((i) => normalizeSingleIngredient(i.name));
 
-  const checkHasIngredient = (query: string) => {
-    const q = query.toLowerCase().trim();
-    return invTerms.find((item) => {
-      const n = item.name.toLowerCase();
-      if (n.includes(q) || q.includes(n)) return true;
-      if (q === 'eggs' && n.includes('egg')) return true;
-      if (q === 'egg' && n.includes('egg')) return true;
-      if (q === 'spinach' && (n.includes('palak') || n.includes('spinach'))) return true;
-      if (q === 'palak' && (n.includes('palak') || n.includes('spinach'))) return true;
-      if (q === 'coriander' && (n.includes('cilantro') || n.includes('coriander'))) return true;
-      if (q === 'cilantro' && (n.includes('cilantro') || n.includes('coriander'))) return true;
-      if (q === 'shallots' && (n.includes('onion') || n.includes('shallot'))) return true;
-      if (q === 'sambar onions' && (n.includes('onion') || n.includes('shallot'))) return true;
-      if (q === 'tomatoes' && n.includes('tomato')) return true;
-      if (q === 'batter' && n.includes('batter')) return true;
-      if (q === 'coconut' && n.includes('coconut')) return true;
-      if (q === 'mushrooms' && n.includes('mushroom')) return true;
-      if (q === 'cream' && n.includes('cream')) return true;
-      if (q === 'pasta' && (n.includes('pasta') || n.includes('fettuccine') || n.includes('penne'))) return true;
-      if (q === 'carrots' && n.includes('carrot')) return true;
-      if (q === 'beans' && n.includes('bean')) return true;
-      if (q === 'toor dal' && (n.includes('toor dal') || n.includes('dal'))) return true;
-      return false;
-    });
-  };
-
-  let missing: string[] = [];
-  let atRisk: { name: string; urgency: string; status: 'critical' | 'urgent' | 'warning' }[] = [];
-  let pantry: string[] = [];
-
-  if (recipe.id === 'spinach-tomato-omelette') {
-    const hasEggs = checkHasIngredient('egg');
-    const hasSpinach = checkHasIngredient('spinach');
-    const hasTomatoes = checkHasIngredient('tomato');
-    if (!hasEggs) missing.push('Eggs (2-3)');
-    if (!hasSpinach) missing.push('Spinach (1 bunch)');
-    if (!hasTomatoes) missing.push('Tomatoes (1-2)');
-    if (hasSpinach) pantry.push(hasSpinach.name);
-    if (hasTomatoes) pantry.push(hasTomatoes.name);
-    if (hasEggs) pantry.push(hasEggs.name);
-  } else if (recipe.id === 'creamy-mushroom-pasta') {
-    const hasCream = checkHasIngredient('cream');
-    const hasMushrooms = checkHasIngredient('mushroom');
-    const hasPasta = checkHasIngredient('pasta');
-    if (!hasPasta) missing.push('Fettuccine or Penne');
-    if (!hasCream) missing.push('Heavy Cream');
-    if (!hasMushrooms) missing.push('Mushrooms');
-    if (hasCream) pantry.push(hasCream.name);
-    if (hasMushrooms) pantry.push(hasMushrooms.name);
-    if (hasPasta) pantry.push(hasPasta.name);
-  } else if (recipe.id === 'mixed-veg-sambar') {
-    const hasDrumstick = checkHasIngredient('drumstick');
-    const hasDal = checkHasIngredient('toor dal');
-    const hasOnion = checkHasIngredient('shallot');
-    if (!hasDrumstick) missing.push('Drumstick (optional)');
-    if (!hasDal) missing.push('Toor Dal');
-    if (hasDal) pantry.push(hasDal.name);
-    if (hasOnion) pantry.push(hasOnion.name);
-  } else if (recipe.id === 'tangy-tomato-rasam') {
-    const hasTomatoes = checkHasIngredient('tomato');
-    const hasCoriander = checkHasIngredient('coriander');
-    if (!hasTomatoes) missing.push('Country Tomatoes');
-    if (hasTomatoes) pantry.push(hasTomatoes.name);
-    if (hasCoriander) pantry.push(hasCoriander.name);
-  } else if (recipe.id === 'kara-kuzhi-paniyaram') {
-    const hasBatter = checkHasIngredient('batter');
-    const hasCoconut = checkHasIngredient('coconut');
-    if (!hasBatter) missing.push('Fermented Batter');
-    if (hasBatter) pantry.push(hasBatter.name);
-    if (hasCoconut) pantry.push(hasCoconut.name);
-  } else {
-    missing = (recipe.missingIngredients || []).filter((m) => !checkHasIngredient(m));
-  }
-
-  const termsToCheck = [
-    ...(recipe.atRiskIngredients?.map((a) => a.name) || []),
-    ...(recipe.pantryItems || []),
-    recipe.title,
-  ];
-
-  invTerms.forEach((item) => {
-    if ((item.atRisk || item.daysLeft <= 2) && item.quantity > 0) {
-      const match = termsToCheck.some((t) => {
-        const query = t.toLowerCase();
-        const itemName = item.name.toLowerCase();
-        return (
-          itemName.includes(query) ||
-          query.includes(itemName) ||
-          (query.includes('tomato') && itemName.includes('tomato')) ||
-          (query.includes('batter') && itemName.includes('batter')) ||
-          (query.includes('coconut') && itemName.includes('coconut')) ||
-          (query.includes('spinach') && (itemName.includes('spinach') || itemName.includes('palak'))) ||
-          (query.includes('coriander') && itemName.includes('coriander')) ||
-          (query.includes('egg') && itemName.includes('egg')) ||
-          (query.includes('mushroom') && itemName.includes('mushroom')) ||
-          (query.includes('cream') && itemName.includes('cream')) ||
-          (query.includes('shallot') && (itemName.includes('shallot') || itemName.includes('onion')))
-        );
-      });
-      if (match && !atRisk.some((a) => a.name === item.name)) {
-        const mappedStatus: 'critical' | 'urgent' | 'warning' =
-          item.urgencyStatus === 'critical' ? 'critical' : item.urgencyStatus === 'urgent' ? 'urgent' : 'warning';
-        atRisk.push({
-          name: item.name,
-          urgency: item.daysLeft <= 0 ? 'Today' : `${item.daysLeft}d left`,
-          status: mappedStatus,
-        });
-      }
-    }
-  });
-
-  if (atRisk.length === 0 && recipe.atRiskIngredients) {
-    atRisk = recipe.atRiskIngredients;
-  }
-  if (pantry.length === 0 && recipe.pantryItems) {
-    pantry = recipe.pantryItems;
-  }
+  const match = calculateRecipeMatch(recipe, invStandards);
 
   return {
     ...recipe,
-    missingIngredients: missing,
-    atRiskIngredients: atRisk,
-    pantryItems: pantry,
+    matchPercentage: match.matchPercentage,
+    missingIngredients: match.missingIngredients,
+    availableIngredientsList: match.availableIngredients,
+    missingIngredientsList: match.missingIngredients,
   };
 };
 
@@ -245,28 +144,65 @@ const KitchenContext = createContext<KitchenContextType | undefined>(undefined);
 
 export const KitchenProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [activeScreen, setActiveScreen] = useState<ActiveScreen>('dashboard');
-  const [inventory, setInventory] = useState<InventoryItem[]>(INITIAL_INVENTORY);
+  const [inventory, setInventory] = useState<InventoryItem[]>(() =>
+    loadStorage('smart_shelf_inventory', INITIAL_INVENTORY)
+  );
   const [dailySchedule] = useState<DailyMealRescue[]>(DAILY_RESCUE_SCHEDULE);
-  const [shoppingItems, setShoppingItems] = useState<ShoppingItem[]>(INITIAL_SHOPPING_ITEMS);
-  const [communityPosts, setCommunityPosts] = useState<CommunityPost[]>(COMMUNITY_POSTS);
-  const [userSettings, setUserSettings] = useState<UserSettings>(INITIAL_USER_SETTINGS);
+  const [shoppingItems, setShoppingItems] = useState<ShoppingItem[]>(() =>
+    loadStorage('smart_shelf_shopping', INITIAL_SHOPPING_ITEMS)
+  );
+  const [communityPosts, setCommunityPosts] = useState<CommunityPost[]>(() =>
+    loadStorage('smart_shelf_posts', COMMUNITY_POSTS)
+  );
+  const [userSettings, setUserSettings] = useState<UserSettings>(() =>
+    loadStorage('smart_shelf_settings', INITIAL_USER_SETTINGS)
+  );
   
   const [editingInventoryItem, setEditingInventoryItem] = useState<InventoryItem | null>(null);
   const [selectedRecipeForDetail, setSelectedRecipeForDetail] = useState<Recipe | null>(null);
   const [isRecipeDetailOpen, setIsRecipeDetailOpen] = useState<boolean>(false);
-  const [notifications, setNotifications] = useState<NotificationItem[]>(INITIAL_NOTIFICATIONS);
+  const [notifications, setNotifications] = useState<NotificationItem[]>(() =>
+    loadStorage('smart_shelf_notifications', INITIAL_NOTIFICATIONS)
+  );
   const [isNotificationsOpen, setIsNotificationsOpen] = useState<boolean>(false);
 
-  const [lastCompletedSession, setLastCompletedSession] = useState<CompletedSessionInfo>({
-    recipeId: 'tangy-tomato-rasam',
-    title: 'Tangy Tomato Rasam',
-    subtitle: '(Lemon Infused)',
-    rescueWeight: '560g',
-    moneySaved: '₹185',
-    rescuedItemsText: '4 items rescued (560g) • ₹185 saved • IoT scale and crisper pantry inventory auto-deducted accurately.',
-    rescuedIngredientsNote: 'Coriander, Lemon & Overripe Tomatoes salvaged',
-    timestamp: 'Recent session',
-  });
+  const [lastCompletedSession, setLastCompletedSession] = useState<CompletedSessionInfo>(() =>
+    loadStorage('smart_shelf_session', {
+      recipeId: 'tangy-tomato-rasam',
+      title: 'Tangy Tomato Rasam',
+      subtitle: '(Lemon Infused)',
+      rescueWeight: '560g',
+      moneySaved: '₹185',
+      rescuedItemsText: 'Used 4 food items • 560g saved • ₹185 saved',
+      rescuedIngredientsNote: 'Used lemon and tomatoes before they went bad',
+      timestamp: 'Recent session',
+    })
+  );
+
+  // Sync state to localStorage
+  useEffect(() => {
+    localStorage.setItem('smart_shelf_inventory', JSON.stringify(inventory));
+  }, [inventory]);
+
+  useEffect(() => {
+    localStorage.setItem('smart_shelf_shopping', JSON.stringify(shoppingItems));
+  }, [shoppingItems]);
+
+  useEffect(() => {
+    localStorage.setItem('smart_shelf_settings', JSON.stringify(userSettings));
+  }, [userSettings]);
+
+  useEffect(() => {
+    localStorage.setItem('smart_shelf_posts', JSON.stringify(communityPosts));
+  }, [communityPosts]);
+
+  useEffect(() => {
+    localStorage.setItem('smart_shelf_notifications', JSON.stringify(notifications));
+  }, [notifications]);
+
+  useEffect(() => {
+    localStorage.setItem('smart_shelf_session', JSON.stringify(lastCompletedSession));
+  }, [lastCompletedSession]);
 
   // Dynamically compute recipe recommendations and at-risk matching from current inventory
   const recipes = useMemo(() => {
@@ -279,7 +215,7 @@ export const KitchenProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [isHeyChefOpen, setIsHeyChefOpen] = useState<boolean>(false);
   const [isAddModalOpen, setIsAddModalOpen] = useState<boolean>(false);
   const [toastMessage, setToastMessage] = useState<string | null>(
-    'Tangy Tomato Rasam Completed! 4 items rescued (560g) • ₹185 saved • Scale & Pantry inventory auto-calibrated'
+    'Used 4 food items • 560g saved • ₹185 saved'
   );
 
   // Chef Timer state & live interval
@@ -359,8 +295,8 @@ export const KitchenProvider: React.FC<{ children: React.ReactNode }> = ({ child
     if (isAtRisk) {
       const alertNotif: NotificationItem = {
         id: `notif-${Date.now()}`,
-        title: `Urgent Shelf Expiry: ${created.name} (${created.daysLeft}d left)`,
-        message: `High risk in ${created.location}. AI meal rescue recommendations active in Recipe Hub.`,
+        title: `Food Storage Alert: ${created.name} (${created.daysLeft}d left)`,
+        message: `Use soon in ${created.location}. Recipe suggestions ready in Recipe Hub.`,
         time: 'Just now',
         type: 'alert',
         read: false,
@@ -370,7 +306,7 @@ export const KitchenProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
 
     setToastMessage(
-      `Added ${created.name} (${created.quantity} ${created.unit}) • Expiry in ${created.daysLeft}d • Auto-calibrated`
+      `Added ${created.name} (${created.quantity} ${created.unit}) • Expiry in ${created.daysLeft}d • Quantity updated`
     );
   };
 
@@ -383,7 +319,7 @@ export const KitchenProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   const deleteItem = (id: string) => {
     setInventory((prev) => prev.filter((item) => item.id !== id));
-    setToastMessage('Item removed from pantry inventory');
+    setToastMessage('Item removed from My Food');
   };
 
   const markNotificationRead = (id: string) => {
@@ -555,7 +491,7 @@ export const KitchenProvider: React.FC<{ children: React.ReactNode }> = ({ child
             quantity: newQty,
             atRisk: false,
             urgencyStatus: newQty === 0 ? 'optimal' : item.urgencyStatus,
-            usedAmountNote: `Rescued in ${recipe.title} (-${deduct}${item.unit})`,
+            usedAmountNote: `Used in ${recipe.title} (-${deduct}${item.unit})`,
           };
         }
         return item;
@@ -577,8 +513,8 @@ export const KitchenProvider: React.FC<{ children: React.ReactNode }> = ({ child
       subtitle: recipe.subtitle || '',
       rescueWeight: recipe.rescueWeight || `${Math.round(weightKg * 1000)}g`,
       moneySaved: recipe.moneySaved || `₹${savedAmount}`,
-      rescuedItemsText: `${rescuedItemsLog.length > 0 ? rescuedItemsLog.length : 3} items rescued (${recipe.rescueWeight}) • ₹${savedAmount} saved • IoT scale and crisper pantry inventory auto-deducted.`,
-      rescuedIngredientsNote: rescuedItemsLog.length > 0 ? rescuedItemsLog.slice(0, 3).join(', ') + ' salvaged' : `${recipe.title} ingredients salvaged`,
+      rescuedItemsText: `Used ${rescuedItemsLog.length > 0 ? rescuedItemsLog.length : 4} food items • ${recipe.rescueWeight} saved • ₹${savedAmount} saved`,
+      rescuedIngredientsNote: rescuedItemsLog.length > 0 ? `Used ${rescuedItemsLog.slice(0, 3).join(', ')} before they went bad` : 'Used lemon and tomatoes before they went bad',
       timestamp: 'Just now',
     });
 
@@ -586,7 +522,7 @@ export const KitchenProvider: React.FC<{ children: React.ReactNode }> = ({ child
     const compNotif: NotificationItem = {
       id: `notif-${Date.now()}`,
       title: `${recipe.title} Completed!`,
-      message: `IoT crisper scale auto-deducted ${recipe.rescueWeight}. ₹${savedAmount} saved to your pantry log.`,
+      message: `Used ${recipe.rescueWeight}. ₹${savedAmount} saved to your food log.`,
       time: 'Just now',
       type: 'success',
       read: false,
@@ -595,7 +531,7 @@ export const KitchenProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setNotifications((prev) => [compNotif, ...prev]);
 
     setToastMessage(
-      `${recipe.title} Completed! Rescued ${recipe.rescueWeight || '560g'} • Saved ₹${savedAmount} • Scale & Pantry inventory auto-calibrated`
+      `${recipe.title} Completed! Used ${recipe.rescueWeight || '560g'} • Saved ₹${savedAmount} • Quantity updated`
     );
 
     setActiveScreen('dashboard');

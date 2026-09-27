@@ -1,16 +1,12 @@
 import React, { useState } from 'react';
 import {
-  User,
   Award,
-  Settings,
   Bell,
   Utensils,
   BookOpen,
   Users,
   Moon,
   ChevronRight,
-  ShieldCheck,
-  Check,
 } from 'lucide-react';
 import { useKitchen } from '../context/KitchenContext';
 
@@ -29,15 +25,15 @@ export const ProfileView: React.FC = () => {
   const adjustMembers = (delta: number) => {
     const updated = Math.max(1, Math.min(8, userSettings.householdMembers + delta));
     updateUserSettings({ householdMembers: updated });
-    setToastMessage(`Portion scaling calibrated for ${updated} household member${updated > 1 ? 's' : ''}`);
+    setToastMessage(`Portion sizes set for ${updated} person${updated > 1 ? 's' : ''}`);
   };
 
   return (
     <div className="space-y-6 pb-20">
-      {/* 1. Profile Hero Card (Image 17) */}
+      {/* 1. Profile Hero Card */}
       <div className="p-6 rounded-3xl bg-[#1c2529] border border-white/10 flex flex-col sm:flex-row items-center gap-5 text-center sm:text-left">
         <div className="w-20 h-20 rounded-2xl bg-gradient-to-tr from-[#004f5e] via-[#a1e3f9] to-white flex items-center justify-center text-[#002028] font-display font-black text-2xl shadow-xl shadow-[#a1e3f9]/20 border-2 border-white/20">
-          GH
+          HC
         </div>
 
         <div className="space-y-1">
@@ -48,14 +44,14 @@ export const ProfileView: React.FC = () => {
               {userSettings.badge}
             </span>
           </div>
-          <p className="text-xs text-[#8e989b]">{userSettings.roleTitle} • Smart Shelf Connected Kitchen</p>
+          <p className="text-xs text-[#8e989b]">Home Cook • Smart Shelf Connected Kitchen</p>
         </div>
       </div>
 
-      {/* 2. Key Metrics Trio (Image 17) */}
+      {/* 2. Key Metrics Trio */}
       <div className="grid grid-cols-3 gap-3">
         <div className="p-4 rounded-2xl bg-[#151d20] border border-white/5 text-center">
-          <p className="text-[11px] text-[#8e989b] font-medium">Waste Saved</p>
+          <p className="text-[11px] text-[#8e989b] font-medium">Food Saved</p>
           <p className="font-display text-xl sm:text-2xl font-black text-emerald-400 mt-1">
             {userSettings.wasteSavedKg} kg
           </p>
@@ -63,18 +59,18 @@ export const ProfileView: React.FC = () => {
         <div className="p-4 rounded-2xl bg-[#151d20] border border-white/5 text-center">
           <p className="text-[11px] text-[#8e989b] font-medium">Money Saved</p>
           <p className="font-display text-xl sm:text-2xl font-black text-[#ffb780] mt-1">
-            {(userSettings.moneySavedInr / 1000).toFixed(1)}k ₹
+            ₹{userSettings.moneySavedInr.toLocaleString('en-IN')}
           </p>
         </div>
         <div className="p-4 rounded-2xl bg-[#151d20] border border-white/5 text-center">
-          <p className="text-[11px] text-[#8e989b] font-medium">Mastered</p>
+          <p className="text-[11px] text-[#8e989b] font-medium">Recipes Cooked</p>
           <p className="font-display text-xl sm:text-2xl font-black text-[#a1e3f9] mt-1">
             {userSettings.recipesMastered}
           </p>
         </div>
       </div>
 
-      {/* 3. Settings Menu (Image 17) */}
+      {/* 3. Settings Menu */}
       <div className="p-5 rounded-2xl bg-[#1c2529] border border-white/10 space-y-2">
         <h3 className="font-display text-sm font-bold text-white uppercase tracking-wider mb-3">
           Kitchen Preferences
@@ -98,8 +94,8 @@ export const ProfileView: React.FC = () => {
           >
             <option value="South Indian Vegetarian">South Indian Vegetarian</option>
             <option value="South Indian Mixed">South Indian Mixed</option>
-            <option value="Zero Waste Vegan">Zero Waste Vegan</option>
-            <option value="Low Sodium Prep">Low Sodium Prep</option>
+            <option value="Vegan">Vegan</option>
+            <option value="Low Salt">Low Salt</option>
           </select>
         </div>
 
@@ -110,17 +106,17 @@ export const ProfileView: React.FC = () => {
               <Bell className="w-4 h-4" />
             </div>
             <div>
-              <p className="text-xs font-semibold text-white">Notification Settings</p>
-              <p className="text-[11px] text-[#8e989b]">Expiry alerts, daily meal prep reminders</p>
+              <p className="text-xs font-semibold text-white">Notifications</p>
+              <p className="text-[11px] text-[#8e989b]">Expiry alerts, meal prep reminders</p>
             </div>
           </div>
           <button
             onClick={() => {
               const next = !notificationsOn;
               setNotificationsOn(next);
-              setToastMessage(next ? 'Push and expiry alerts enabled' : 'Notifications muted');
+              setToastMessage(next ? 'Notifications enabled' : 'Notifications muted');
             }}
-            className={`w-11 h-6 rounded-full transition-colors relative p-0.5 ${
+            className={`w-11 h-6 rounded-full transition-colors relative p-0.5 cursor-pointer ${
               notificationsOn ? 'bg-[#a1e3f9]' : 'bg-[#252f33]'
             }`}
           >
@@ -132,18 +128,18 @@ export const ProfileView: React.FC = () => {
           </button>
         </div>
 
-        {/* Kitchen Storage Guide */}
+        {/* Kitchen Storage Tips */}
         <button
           onClick={() => setActiveGuideModal(true)}
-          className="w-full p-3.5 rounded-xl bg-[#151d20] border border-white/5 hover:border-white/15 flex items-center justify-between text-left transition-all"
+          className="w-full p-3.5 rounded-xl bg-[#151d20] border border-white/5 hover:border-white/15 flex items-center justify-between text-left transition-all cursor-pointer"
         >
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center text-emerald-400">
               <BookOpen className="w-4 h-4" />
             </div>
             <div>
-              <p className="text-xs font-semibold text-white">Kitchen Storage Tips</p>
-              <p className="text-[11px] text-[#8e989b]">Crisper humidity, herb revival & shelf guidelines</p>
+              <p className="text-xs font-semibold text-white">Food Storage Tips</p>
+              <p className="text-[11px] text-[#8e989b]">How to keep herbs, vegetables, and dairy fresh longer</p>
             </div>
           </div>
           <ChevronRight className="w-4 h-4 text-[#8e989b]" />
@@ -157,13 +153,13 @@ export const ProfileView: React.FC = () => {
             </div>
             <div>
               <p className="text-xs font-semibold text-white">Household Members</p>
-              <p className="text-[11px] text-[#8e989b]">{userSettings.householdMembers} People • Dynamic portion scaling</p>
+              <p className="text-[11px] text-[#8e989b]">{userSettings.householdMembers} People • Recipe portion scaling</p>
             </div>
           </div>
           <div className="flex items-center gap-1.5 bg-[#1c2529] border border-white/10 rounded-xl p-1">
             <button
               onClick={() => adjustMembers(-1)}
-              className="w-6 h-6 rounded-lg bg-[#252f33] hover:bg-[#323d42] text-white flex items-center justify-center text-xs font-bold"
+              className="w-6 h-6 rounded-lg bg-[#252f33] hover:bg-[#323d42] text-white flex items-center justify-center text-xs font-bold cursor-pointer"
             >
               -
             </button>
@@ -172,7 +168,7 @@ export const ProfileView: React.FC = () => {
             </span>
             <button
               onClick={() => adjustMembers(1)}
-              className="w-6 h-6 rounded-lg bg-[#252f33] hover:bg-[#323d42] text-[#a1e3f9] flex items-center justify-center text-xs font-bold"
+              className="w-6 h-6 rounded-lg bg-[#252f33] hover:bg-[#323d42] text-[#a1e3f9] flex items-center justify-center text-xs font-bold cursor-pointer"
             >
               +
             </button>
@@ -186,8 +182,8 @@ export const ProfileView: React.FC = () => {
               <Moon className="w-4 h-4" />
             </div>
             <div>
-              <p className="text-xs font-semibold text-white">App Theme</p>
-              <p className="text-[11px] text-[#8e989b]">Dark Navy Charcoal (Stitch Spec)</p>
+              <p className="text-xs font-semibold text-white">Theme</p>
+              <p className="text-[11px] text-[#8e989b]">Dark modern kitchen theme</p>
             </div>
           </div>
           <span className="text-xs font-mono font-bold text-[#a1e3f9] px-2.5 py-1 rounded bg-[#a1e3f9]/10">
@@ -196,30 +192,30 @@ export const ProfileView: React.FC = () => {
         </div>
       </div>
 
-      {/* Storage Guide Modal */}
+      {/* Storage Tips Modal */}
       {activeGuideModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
           <div className="w-full max-w-lg bg-[#1c2529] border border-white/10 rounded-2xl p-6 space-y-4">
-            <h3 className="font-display text-lg font-bold text-white">South Indian Kitchen Storage Guide</h3>
+            <h3 className="font-display text-lg font-bold text-white">Easy Food Storage Tips</h3>
             <div className="space-y-2.5 text-xs text-[#bfc8cc] leading-relaxed">
               <p>
-                🌿 <strong>Fresh Curry Leaves & Coriander:</strong> Wrap in clean unbleached cotton muslin cloth or an airtight glass box with a paper towel. Keeps fresh for up to 18 days.
+                🌿 <strong>Fresh Curry Leaves & Coriander:</strong> Wrap in a clean cloth or container with a paper towel. Stays fresh for up to 2 weeks.
               </p>
               <p>
-                🥥 <strong>Grated Coconut:</strong> Portion into 100g batches and freeze immediately in shallow silicone trays. Can be thawed in warm water in 3 minutes.
+                🥥 <strong>Grated Coconut:</strong> Portion into small bags and freeze immediately. Thaws in warm water in 3 minutes.
               </p>
               <p>
-                🥣 <strong>Fermented Batter:</strong> Keep in bottom chiller crisper (3.8°C) to prevent over-fermenting into high sourness. If sour, make spicy Kara Paniyaram!
+                🥣 <strong>Fermented Batter:</strong> Keep on the lower fridge shelf (around 4°C). If it turns sour, use it for crispy Kara Paniyaram!
               </p>
               <p>
-                🍅 <strong>Country Tomatoes:</strong> Keep at room temperature until fully ripe, then transfer to vegetable bay if unconsumed within 48 hours.
+                🍅 <strong>Tomatoes:</strong> Store at room temperature until ripe, then move to the vegetable drawer if not using within 2 days.
               </p>
             </div>
             <button
               onClick={() => setActiveGuideModal(false)}
-              className="w-full py-2 rounded-xl bg-[#a1e3f9] text-[#003642] font-bold text-xs"
+              className="w-full py-2.5 rounded-xl bg-[#a1e3f9] hover:bg-[#c2effc] text-[#003642] font-bold text-xs cursor-pointer transition-all"
             >
-              Close Reference Guide
+              Close
             </button>
           </div>
         </div>

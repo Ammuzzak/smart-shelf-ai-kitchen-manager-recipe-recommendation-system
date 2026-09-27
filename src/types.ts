@@ -3,10 +3,12 @@ export type StorageLocation = 'Crisper' | 'Shelf A' | 'Shelf B' | 'Jar' | 'Freez
 export type FoodCategory =
   | 'Produce'
   | 'Dairy'
+  | 'Basic Foods'
   | 'Staples'
   | 'Lentils & Spices'
   | 'Bakery'
   | 'Oils'
+  | 'Sauces & Spreads'
   | 'Condiments';
 
 export interface InventoryItem {
@@ -55,7 +57,7 @@ export interface Recipe {
   atRiskIngredients: Array<{
     name: string;
     urgency: string;
-    status: 'critical' | 'urgent' | 'warning';
+    status: 'critical' | 'urgent' | 'warning' | 'optimal';
   }>;
   pantryItems: string[];
   missingIngredients?: string[];
@@ -72,6 +74,19 @@ export interface Recipe {
     text: string;
   };
   steps: RecipeStep[];
+  normalizedRequired?: string[];
+  normalizedOptional?: string[];
+  videoUrl?: string;
+  matchPercentage?: number;
+  availableIngredientsList?: string[];
+  missingIngredientsList?: string[];
+}
+
+export interface ActivityItem {
+  id: string;
+  text: string;
+  time: string;
+  type: 'add' | 'cook' | 'save' | 'shopping';
 }
 
 export interface DailyMealRescue {

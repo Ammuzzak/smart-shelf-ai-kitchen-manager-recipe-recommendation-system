@@ -8,10 +8,10 @@ export const MobileBottomNav: React.FC = () => {
 
   const tabs: Array<{ id: ActiveScreen; label: string; icon: React.ComponentType<{ className?: string }> }> = [
     { id: 'dashboard', label: 'Home', icon: LayoutDashboard },
-    { id: 'inventory', label: 'Shelf', icon: Boxes },
+    { id: 'inventory', label: 'My Food', icon: Boxes },
     { id: 'rescue', label: 'Rescue', icon: CalendarCheck },
     { id: 'recipes', label: 'Recipes', icon: UtensilsCrossed },
-    { id: 'analytics', label: 'Impact', icon: BarChart3 },
+    { id: 'analytics', label: 'Food Waste', icon: BarChart3 },
   ];
 
   return (

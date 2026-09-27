@@ -17,17 +17,23 @@ import { useKitchen } from '../context/KitchenContext';
 import { ActiveScreen } from '../types';
 
 export const Sidebar: React.FC = () => {
-  const { activeScreen, setActiveScreen, setIsHeyChefOpen, setIsAddModalOpen, chefTimerSeconds } =
-    useKitchen();
+  const {
+    activeScreen,
+    setActiveScreen,
+    setIsHeyChefOpen,
+    setIsAddModalOpen,
+    chefTimerSeconds,
+    setToastMessage,
+  } = useKitchen();
 
   const navItems: Array<{ id: ActiveScreen; label: string; icon: React.ComponentType<{ className?: string }> }> = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { id: 'inventory', label: 'Live Inventory', icon: Boxes },
+    { id: 'inventory', label: 'My Food', icon: Boxes },
     { id: 'shopping-list', label: 'Smart Shopping', icon: ShoppingCart },
     { id: 'rescue', label: 'Rescue Plan', icon: CalendarCheck },
     { id: 'recipes', label: 'Recipe Hub', icon: UtensilsCrossed },
     { id: 'live-cooking', label: 'Live Cooking', icon: ChefHat },
-    { id: 'analytics', label: 'Waste Analytics', icon: BarChart3 },
+    { id: 'analytics', label: 'Food Waste', icon: BarChart3 },
     { id: 'community', label: 'Community', icon: Users },
     { id: 'profile', label: 'Kitchen Profile', icon: UserCheck },
   ];
@@ -46,13 +52,17 @@ export const Sidebar: React.FC = () => {
                 <span className="font-display font-extrabold text-sm tracking-wider text-white">SMART SHELF</span>
                 <span className="text-[10px] px-1.5 py-0.5 rounded bg-white/10 text-[#a1e3f9] font-mono">v2.4</span>
               </div>
-              <p className="text-[11px] text-[#8e989b] font-medium">AI Kitchen OS</p>
+              <p className="text-[11px] text-[#8e989b] font-medium">Smart Kitchen</p>
             </div>
           </div>
         </div>
 
         {/* Ambient Sensor Dock */}
-        <div className="p-2.5 rounded-xl bg-[#1c2529] border border-white/5 mb-4 flex items-center justify-between text-xs">
+        <button
+          onClick={() => setToastMessage('Kitchen Climate: 22.4°C • Humidity 48% (Optimal for Food Storage)')}
+          className="w-full p-2.5 rounded-xl bg-[#1c2529] hover:bg-[#252f33] border border-white/5 mb-4 flex items-center justify-between text-xs transition-all text-left"
+          title="Click to view sensor telemetry"
+        >
           <div className="flex items-center gap-2">
             <Thermometer className="w-4 h-4 text-[#ffb780]" />
             <span className="text-white font-medium">22.4°C</span>
@@ -60,7 +70,7 @@ export const Sidebar: React.FC = () => {
           <span className="text-[11px] px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 font-medium">
             48% Optimal
           </span>
-        </div>
+        </button>
 
         {/* Navigation Items */}
         <nav className="space-y-1">
@@ -108,7 +118,7 @@ export const Sidebar: React.FC = () => {
           className="w-full flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl bg-[#1c2529] hover:bg-[#232b2e] border border-white/10 text-white text-xs font-semibold transition-all"
         >
           <PlusCircle className="w-4 h-4 text-[#a1e3f9]" />
-          <span>+ Add Inventory</span>
+          <span>+ Add Food</span>
         </button>
 
         <button
@@ -120,7 +130,7 @@ export const Sidebar: React.FC = () => {
               <Mic className="w-4 h-4 animate-pulse" />
             </div>
             <div className="text-left">
-              <p className="text-[10px] uppercase font-bold text-[#a1e3f9] tracking-wider">Hands-Free</p>
+              <p className="text-[10px] uppercase font-bold text-[#a1e3f9] tracking-wider">Voice Command</p>
               <p className="text-xs font-semibold text-white">"Hey Chef"</p>
             </div>
           </div>
@@ -128,15 +138,19 @@ export const Sidebar: React.FC = () => {
         </button>
 
         {chefTimerSeconds > 0 && (
-          <div className="p-2 rounded-lg bg-[#182124] border border-white/5 flex items-center justify-between text-[11px]">
-            <span className="text-[#8e989b]">Simmer Timer</span>
+          <button
+            onClick={() => setActiveScreen('live-cooking')}
+            className="w-full p-2 rounded-lg bg-[#182124] hover:bg-[#1f2a2e] border border-white/5 flex items-center justify-between text-[11px] transition-all"
+            title="Click to view Live Cooking"
+          >
+            <span className="text-[#8e989b]">Kitchen Timer</span>
             <span className="font-mono font-bold text-[#ffb780]">
               {Math.floor(chefTimerSeconds / 60)
                 .toString()
                 .padStart(2, '0')}
               :{(chefTimerSeconds % 60).toString().padStart(2, '0')}
             </span>
-          </div>
+          </button>
         )}
       </div>
     </aside>

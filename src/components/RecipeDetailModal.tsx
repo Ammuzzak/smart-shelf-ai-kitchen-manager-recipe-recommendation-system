@@ -7,10 +7,7 @@ import {
   ShieldAlert,
   CheckCircle2,
   DollarSign,
-  Scale,
   ShoppingCart,
-  Sparkles,
-  Flame,
   ArrowRight,
 } from 'lucide-react';
 import { useKitchen } from '../context/KitchenContext';
@@ -37,12 +34,12 @@ export const RecipeDetailModal: React.FC = () => {
     setActiveCookingStep(1);
     setIsRecipeDetailOpen(false);
     setActiveScreen('live-cooking');
-    setToastMessage(`Initiated Live Cooking for ${recipe.title}`);
+    setToastMessage(`Started Live Cooking for ${recipe.title}`);
   };
 
   const handleAddMissingToShopping = () => {
     if (!recipe.missingIngredients || recipe.missingIngredients.length === 0) {
-      setToastMessage('All required ingredients are already in your pantry!');
+      setToastMessage('All required ingredients are already in your kitchen!');
       return;
     }
     recipe.missingIngredients.forEach((item) => {
@@ -66,7 +63,7 @@ export const RecipeDetailModal: React.FC = () => {
           {/* Close button */}
           <button
             onClick={() => setIsRecipeDetailOpen(false)}
-            className="absolute top-4 right-4 w-9 h-9 rounded-full bg-black/50 hover:bg-black/80 text-white flex items-center justify-center backdrop-blur-sm border border-white/10 transition-all z-10"
+            className="absolute top-4 right-4 w-9 h-9 rounded-full bg-black/50 hover:bg-black/80 text-white flex items-center justify-center backdrop-blur-sm border border-white/10 transition-all z-10 cursor-pointer"
           >
             <X className="w-4 h-4" />
           </button>
@@ -76,8 +73,13 @@ export const RecipeDetailModal: React.FC = () => {
             <span className="px-3 py-1 rounded-full bg-[#a1e3f9] text-[#003642] font-mono font-bold text-xs uppercase tracking-wide">
               {recipe.cuisine}
             </span>
+            {recipe.matchPercentage !== undefined && (
+              <span className="px-3 py-1 rounded-full bg-emerald-500/25 border border-emerald-400 text-emerald-300 font-mono font-bold text-xs">
+                {recipe.matchPercentage}% Match
+              </span>
+            )}
             <span className="px-3 py-1 rounded-full bg-emerald-500/20 border border-emerald-400/40 text-emerald-300 font-mono font-bold text-xs">
-              Rescues {recipe.rescueWeight}
+              Saves {recipe.rescueWeight}
             </span>
             <span className="px-3 py-1 rounded-full bg-[#ffb780]/20 border border-[#ffb780]/40 text-[#ffb780] font-mono font-bold text-xs">
               Saves {recipe.moneySaved}
@@ -110,8 +112,8 @@ export const RecipeDetailModal: React.FC = () => {
                 <Users className="w-4 h-4" />
               </div>
               <div>
-                <p className="text-[10px] text-[#8e989b] uppercase font-bold">Yield</p>
-                <p className="text-xs font-bold text-white">{recipe.servings} Servings</p>
+                <p className="text-[10px] text-[#8e989b] uppercase font-bold">Servings</p>
+                <p className="text-xs font-bold text-white">{recipe.servings} People</p>
               </div>
             </div>
 
@@ -120,18 +122,18 @@ export const RecipeDetailModal: React.FC = () => {
                 <DollarSign className="w-4 h-4" />
               </div>
               <div>
-                <p className="text-[10px] text-[#8e989b] uppercase font-bold">Saved Value</p>
+                <p className="text-[10px] text-[#8e989b] uppercase font-bold">Money Saved</p>
                 <p className="text-xs font-bold text-[#ffb780]">{recipe.moneySaved}</p>
               </div>
             </div>
           </div>
 
-          {/* Rescued Ingredients Section */}
+          {/* Expiring Ingredients Section */}
           <div className="space-y-3">
             <div className="flex items-center gap-2">
               <ShieldAlert className="w-4 h-4 text-rose-400" />
               <h3 className="font-display text-sm font-bold text-white uppercase tracking-wider">
-                Rescued From Your Shelf (At-Risk)
+                Uses From Your Food (Expiring Soon)
               </h3>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -152,37 +154,62 @@ export const RecipeDetailModal: React.FC = () => {
             </div>
           </div>
 
-          {/* Pantry Staples & Missing */}
-          <div className="space-y-3">
-            <h3 className="font-display text-sm font-bold text-white uppercase tracking-wider">
-              Pantry Staples & Spices
-            </h3>
-            <div className="flex flex-wrap gap-2">
-              {recipe.pantryItems.map((item, i) => (
-                <span
-                  key={i}
-                  className="px-3 py-1.5 rounded-xl bg-[#151d20] border border-white/5 text-xs text-[#bfc8cc] flex items-center gap-1.5"
-                >
-                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-                  <span>{item}</span>
-                </span>
-              ))}
+          {/* Ingredients You Have & You Need */}
+          <div className="space-y-4">
+            {/* You Have */}
+            <div className="space-y-2">
+              <h3 className="font-display text-xs font-bold text-emerald-400 uppercase tracking-wider flex items-center gap-1.5">
+                <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                <span>You Have:</span>
+              </h3>
+              <div className="flex flex-wrap gap-2">
+                {(recipe.availableIngredientsList && recipe.availableIngredientsList.length > 0
+                  ? recipe.availableIngredientsList
+                  : recipe.pantryItems
+                ).map((item, i) => (
+                  <span
+                    key={i}
+                    className="px-3 py-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-xs text-emerald-300 flex items-center gap-1.5 font-medium"
+                  >
+                    <span>✓</span>
+                    <span>{item}</span>
+                  </span>
+                ))}
+              </div>
             </div>
 
-            {recipe.missingIngredients && recipe.missingIngredients.length > 0 && (
-              <div className="mt-3 p-3.5 rounded-2xl bg-[#ffb780]/10 border border-[#ffb780]/20 flex flex-wrap items-center justify-between gap-3">
-                <div>
-                  <p className="text-xs font-bold text-[#ffb780]">Missing Ingredients:</p>
-                  <p className="text-xs text-[#dbe4e8] mt-0.5">{recipe.missingIngredients.join(', ')}</p>
+            {/* You Need */}
+            {recipe.missingIngredients && recipe.missingIngredients.length > 0 ? (
+              <div className="space-y-2">
+                <h3 className="font-display text-xs font-bold text-[#ffb780] uppercase tracking-wider flex items-center gap-1.5">
+                  <ShieldAlert className="w-4 h-4 text-[#ffb780]" />
+                  <span>You Need:</span>
+                </h3>
+                <div className="p-3.5 rounded-2xl bg-[#ffb780]/10 border border-[#ffb780]/20 flex flex-wrap items-center justify-between gap-3">
+                  <div className="flex flex-wrap gap-2">
+                    {recipe.missingIngredients.map((item, i) => (
+                      <span
+                        key={i}
+                        className="px-3 py-1 rounded-lg bg-[#ffb780]/20 text-[#ffb780] text-xs font-bold"
+                      >
+                        + {item}
+                      </span>
+                    ))}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleAddMissingToShopping}
+                    className="px-3 py-1.5 rounded-xl bg-[#ffb780] hover:bg-[#ffd7b2] text-[#4a2800] text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-sm"
+                  >
+                    <ShoppingCart className="w-3.5 h-3.5" />
+                    <span>Add to Shopping List</span>
+                  </button>
                 </div>
-                <button
-                  type="button"
-                  onClick={handleAddMissingToShopping}
-                  className="px-3 py-1.5 rounded-xl bg-[#ffb780] hover:bg-[#ffd7b2] text-[#4a2800] text-xs font-bold transition-all flex items-center gap-1.5"
-                >
-                  <ShoppingCart className="w-3.5 h-3.5" />
-                  <span>Add to Shopping List</span>
-                </button>
+              </div>
+            ) : (
+              <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-xs text-emerald-400 font-semibold flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4" />
+                <span>You have all necessary ingredients to prepare this recipe right now!</span>
               </div>
             )}
           </div>
@@ -221,7 +248,7 @@ export const RecipeDetailModal: React.FC = () => {
           <button
             type="button"
             onClick={() => setIsRecipeDetailOpen(false)}
-            className="px-4 py-2.5 rounded-xl bg-[#1c2529] hover:bg-[#252f33] text-[#bfc8cc] text-xs font-semibold transition-all"
+            className="px-4 py-2.5 rounded-xl bg-[#1c2529] hover:bg-[#252f33] text-[#bfc8cc] text-xs font-semibold transition-all cursor-pointer"
           >
             Back to Catalog
           </button>
@@ -229,7 +256,7 @@ export const RecipeDetailModal: React.FC = () => {
           <button
             type="button"
             onClick={handleStartLiveCooking}
-            className="px-6 py-2.5 rounded-xl bg-[#a1e3f9] hover:bg-[#c2effc] text-[#003642] text-xs font-bold transition-all flex items-center gap-2 shadow-lg shadow-[#a1e3f9]/20"
+            className="px-6 py-2.5 rounded-xl bg-[#a1e3f9] hover:bg-[#c2effc] text-[#003642] text-xs font-bold transition-all flex items-center gap-2 shadow-lg shadow-[#a1e3f9]/20 cursor-pointer"
           >
             <ChefHat className="w-4 h-4" />
             <span>Start Live Cooking</span>

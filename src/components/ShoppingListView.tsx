@@ -1,13 +1,10 @@
 import React, { useState } from 'react';
 import {
-  ShoppingCart,
   Wallet,
   CheckCircle2,
   Sparkles,
   Plus,
   Check,
-  X,
-  ShieldCheck,
   Lightbulb,
 } from 'lucide-react';
 import { useKitchen } from '../context/KitchenContext';
@@ -32,7 +29,7 @@ export const ShoppingListView: React.FC = () => {
   const handleAddCustom = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newItemName.trim()) return;
-    addShoppingItem(newItemName.trim(), 'Custom pantry addition', newItemQty.trim() || '1 item');
+    addShoppingItem(newItemName.trim(), 'Added to shopping list', newItemQty.trim() || '1 item');
     setNewItemName('');
     setNewItemQty('');
     setShowAddForm(false);
@@ -40,7 +37,7 @@ export const ShoppingListView: React.FC = () => {
 
   const handleApplyTomatoAdjustment = () => {
     setIsTomatoDismissed(true);
-    setToastMessage('Tomato shopping quantity adjusted to 250g. Saved ₹25 from projected waste!');
+    setToastMessage('Tomato shopping amount set to 250g. Saved ₹25!');
   };
 
   return (
@@ -48,10 +45,10 @@ export const ShoppingListView: React.FC = () => {
       {/* Header & Cost card */}
       <div className="p-5 rounded-2xl bg-[#1c2529] border border-white/10 flex flex-wrap items-center justify-between gap-4">
         <div>
-          <span className="text-xs font-bold text-[#a1e3f9] uppercase tracking-wider">Optimized Plan</span>
+          <span className="text-xs font-bold text-[#a1e3f9] uppercase tracking-wider">Shopping Plan</span>
           <h2 className="font-display text-xl font-bold text-white mt-0.5">Smart Shopping List</h2>
           <p className="text-xs text-[#8e989b]">
-            Calibrated for your South Indian Rescue Plan & zero-waste kitchen targets
+            Plan ahead for your upcoming meals and avoid buying extra food
           </p>
         </div>
 
@@ -67,10 +64,10 @@ export const ShoppingListView: React.FC = () => {
         </div>
       </div>
 
-      {/* 1. Required for Rescue Plan Checklist (Image 1) */}
+      {/* 1. Required for Meals Checklist */}
       <div className="p-5 rounded-2xl bg-[#1c2529] border border-white/10 space-y-4">
         <div className="flex items-center justify-between">
-          <h3 className="font-display text-base font-bold text-white">Required for Rescue Plan</h3>
+          <h3 className="font-display text-base font-bold text-white">Needed For Upcoming Meals</h3>
           <span className="text-xs text-[#a1e3f9] font-medium font-mono">
             {rescueItems.filter((i) => i.checked).length} / {rescueItems.length} checked
           </span>
@@ -126,14 +123,14 @@ export const ShoppingListView: React.FC = () => {
             <div className="grid grid-cols-3 gap-2">
               <input
                 type="text"
-                placeholder="Item name"
+                placeholder="Item name (e.g. Bread)"
                 value={newItemName}
                 onChange={(e) => setNewItemName(e.target.value)}
                 className="col-span-2 px-3 py-1.5 rounded-lg bg-[#1c2529] border border-white/10 text-xs text-white outline-none focus:border-[#a1e3f9]"
               />
               <input
                 type="text"
-                placeholder="Qty (e.g. 500g)"
+                placeholder="Amount (e.g. 500g)"
                 value={newItemQty}
                 onChange={(e) => setNewItemQty(e.target.value)}
                 className="px-3 py-1.5 rounded-lg bg-[#1c2529] border border-white/10 text-xs text-white outline-none focus:border-[#a1e3f9]"
@@ -158,11 +155,11 @@ export const ShoppingListView: React.FC = () => {
         )}
       </div>
 
-      {/* 2. Smart Suggestions Cards (Image 1) */}
+      {/* 2. Helpful Tips */}
       <div className="p-5 rounded-2xl bg-[#1c2529] border border-white/10 space-y-3">
         <div className="flex items-center gap-2">
           <Sparkles className="w-4 h-4 text-[#a1e3f9]" />
-          <h3 className="font-display text-base font-bold text-white">Smart Suggestions</h3>
+          <h3 className="font-display text-base font-bold text-white">Helpful Tips</h3>
         </div>
 
         <div className="space-y-3">
@@ -172,10 +169,10 @@ export const ShoppingListView: React.FC = () => {
               <div className="space-y-1 max-w-xl">
                 <p className="text-xs font-bold text-white flex items-center gap-1.5">
                   <Lightbulb className="w-4 h-4 text-[#a1e3f9]" />
-                  Adjust Tomato Quantity
+                  Adjust Tomato Amount
                 </p>
                 <p className="text-xs text-[#bfc8cc] leading-relaxed">
-                  Buy 250g instead of 500g to avoid 20% typical waste based on your household consumption history.
+                  Buy 250g instead of 500g to avoid wasting extra tomatoes based on your household's eating habits.
                 </p>
               </div>
               <div className="flex items-center gap-2">
@@ -201,10 +198,10 @@ export const ShoppingListView: React.FC = () => {
               <div className="space-y-1 max-w-xl">
                 <p className="text-xs font-bold text-white flex items-center gap-1.5">
                   <Lightbulb className="w-4 h-4 text-[#ffb780]" />
-                  Substitute Suggestion
+                  Food Storage Reminder
                 </p>
                 <p className="text-xs text-[#bfc8cc] leading-relaxed">
-                  You have excess Tamarind Paste (350g in Shelf B). Skip buying raw tamarind this week.
+                  You already have extra Tamarind Paste (350g in Shelf B). Skip buying more tamarind this week.
                 </p>
               </div>
               <button
@@ -218,12 +215,12 @@ export const ShoppingListView: React.FC = () => {
         </div>
       </div>
 
-      {/* 3. Verify Staples Section (Image 1) */}
+      {/* 3. Check Basic Foods */}
       <div className="p-5 rounded-2xl bg-[#1c2529] border border-white/10 space-y-4">
         <div className="flex items-center justify-between">
           <div>
-            <h3 className="font-display text-base font-bold text-white">Verify Staples</h3>
-            <p className="text-xs text-[#8e989b]">Pre-check essential staples before leaving for the store</p>
+            <h3 className="font-display text-base font-bold text-white">Check Basic Foods</h3>
+            <p className="text-xs text-[#8e989b]">Double check your kitchen basic foods before heading out</p>
           </div>
           <span className="text-xs px-2.5 py-1 rounded-full bg-white/5 text-[#a1e3f9] font-mono font-medium">
             Quick Check
@@ -265,7 +262,7 @@ export const ShoppingListView: React.FC = () => {
           className="w-full py-2.5 rounded-xl bg-[#232b2e] hover:bg-[#2c363a] text-white border border-white/10 text-xs font-semibold flex items-center justify-center gap-2 transition-all"
         >
           <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-          <span>[✓] All Staples Verified</span>
+          <span>[✓] All Basic Foods Checked</span>
         </button>
       </div>
     </div>

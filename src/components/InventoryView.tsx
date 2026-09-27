@@ -1,14 +1,21 @@
 import React, { useState } from 'react';
-import { Search, Plus, Minus, Trash2, Pencil, AlertTriangle, ShieldCheck, Filter, ScanLine } from 'lucide-react';
+import { Search, Plus, Minus, Trash2, Pencil } from 'lucide-react';
 import { useKitchen } from '../context/KitchenContext';
-import { FoodCategory } from '../types';
 
 export const InventoryView: React.FC = () => {
   const { inventory, adjustItemQuantity, deleteItem, setIsAddModalOpen, setEditingInventoryItem } = useKitchen();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
 
-  const categories = ['All', 'Produce', 'Staples', 'Dairy', 'Lentils & Spices', 'Oils', 'Condiments'];
+  const categories = [
+    'All',
+    'Produce',
+    'Basic Foods',
+    'Dairy',
+    'Lentils & Spices',
+    'Oils',
+    'Sauces & Spreads',
+  ];
 
   const getDeltaForUnit = (unit: string) => {
     switch (unit.toLowerCase()) {
@@ -25,20 +32,38 @@ export const InventoryView: React.FC = () => {
   };
 
   const filteredItems = inventory.filter((item) => {
-    const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    const matchesSearch =
+      item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       item.location.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesCat = selectedCategory === 'All' || item.category === selectedCategory;
+
+    let matchesCat = selectedCategory === 'All';
+    if (!matchesCat) {
+      if (selectedCategory === 'Basic Foods') {
+        matchesCat = item.category === 'Basic Foods' || item.category === 'Staples';
+      } else if (selectedCategory === 'Sauces & Spreads') {
+        matchesCat = item.category === 'Sauces & Spreads' || item.category === 'Condiments';
+      } else {
+        matchesCat = item.category === selectedCategory;
+      }
+    }
+
     return matchesSearch && matchesCat;
   });
+
+  const displayCategoryName = (cat: string) => {
+    if (cat === 'Staples') return 'Basic Foods';
+    if (cat === 'Condiments') return 'Sauces & Spreads';
+    return cat;
+  };
 
   return (
     <div className="space-y-6 pb-20">
       {/* Top Banner */}
       <div className="flex flex-wrap items-center justify-between gap-4 p-5 rounded-2xl bg-[#1c2529] border border-white/10">
         <div>
-          <h2 className="font-display text-xl font-bold text-white">Live Inventory & Pantry Shelf</h2>
+          <h2 className="font-display text-xl font-bold text-white">My Food & Food Storage</h2>
           <p className="text-xs text-[#8e989b] mt-0.5">
-            Calibrated with kitchen scales, RFID tags & storage bay sensors
+            Track your fresh vegetables, basic foods, and storage locations
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -47,7 +72,7 @@ export const InventoryView: React.FC = () => {
             className="px-4 py-2 rounded-xl bg-[#a1e3f9] hover:bg-[#c2effc] text-[#003642] font-bold text-xs flex items-center gap-2 shadow-sm transition-all"
           >
             <Plus className="w-4 h-4" />
-            <span>Add Inventory Item</span>
+            <span>Add Food Item</span>
           </button>
         </div>
       </div>
@@ -60,7 +85,7 @@ export const InventoryView: React.FC = () => {
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search pantry items, spices, veggies, locations..."
+            placeholder="Search food items, spices, veggies, locations..."
             className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[#151d20] border border-white/10 text-white text-xs placeholder-[#5a6568] focus:border-[#a1e3f9] outline-none"
           />
         </div>
@@ -118,17 +143,17 @@ export const InventoryView: React.FC = () => {
                   <button
                     onClick={() => deleteItem(item.id)}
                     className="text-[#8e989b] hover:text-rose-400 p-1.5 rounded-lg hover:bg-white/5 transition-all"
-                    title="Remove from pantry"
+                    title="Remove from My Food"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
                 </div>
               </div>
 
-              {/* Quantity & Calibration Controller */}
+              {/* Quantity Controller */}
               <div className="mt-4 p-3 rounded-xl bg-[#151d20] border border-white/5 flex items-center justify-between">
                 <div>
-                  <p className="text-[10px] text-[#8e989b] uppercase font-bold tracking-wider">Current Stock</p>
+                  <p className="text-[10px] text-[#8e989b] uppercase font-bold tracking-wider">Current Amount</p>
                   <div className="flex items-baseline gap-1 mt-0.5">
                     <span className="font-mono text-base font-extrabold text-[#a1e3f9]">
                       {item.quantity}
@@ -141,12 +166,14 @@ export const InventoryView: React.FC = () => {
                   <button
                     onClick={() => adjustItemQuantity(item.id, -getDeltaForUnit(item.unit))}
                     className="w-8 h-8 rounded-md bg-[#252f33] hover:bg-[#323d42] text-white flex items-center justify-center text-xs font-bold active:scale-95 transition-all"
+                    title="Decrease amount"
                   >
                     <Minus className="w-3.5 h-3.5" />
                   </button>
                   <button
                     onClick={() => adjustItemQuantity(item.id, getDeltaForUnit(item.unit))}
                     className="w-8 h-8 rounded-md bg-[#252f33] hover:bg-[#323d42] text-[#a1e3f9] flex items-center justify-center text-xs font-bold active:scale-95 transition-all"
+                    title="Increase amount"
                   >
                     <Plus className="w-3.5 h-3.5" />
                   </button>
@@ -155,7 +182,7 @@ export const InventoryView: React.FC = () => {
 
               {/* Footer Meta */}
               <div className="mt-3 flex items-center justify-between text-[11px] text-[#8e989b]">
-                <span>Category: {item.category}</span>
+                <span>Category: {displayCategoryName(item.category)}</span>
                 <span>Expiry: {item.expiryDate}</span>
               </div>
             </div>
@@ -165,7 +192,7 @@ export const InventoryView: React.FC = () => {
 
       {filteredItems.length === 0 && (
         <div className="p-8 text-center rounded-2xl bg-[#1c2529] border border-white/10 text-[#8e989b]">
-          No inventory items matched your search. Click "+ Add Inventory Item" to log new ingredients.
+          No food items matched your search. Click "+ Add Food Item" to add new food.
         </div>
       )}
     </div>

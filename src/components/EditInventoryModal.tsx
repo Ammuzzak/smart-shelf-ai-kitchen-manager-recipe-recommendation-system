@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { X, Trash2, Check, AlertTriangle, ShieldCheck } from 'lucide-react';
+import { X, Trash2, Check } from 'lucide-react';
 import { useKitchen } from '../context/KitchenContext';
-import { FoodCategory, InventoryItem } from '../types';
+import { FoodCategory } from '../types';
 
 export const EditInventoryModal: React.FC = () => {
   const { editingInventoryItem, setEditingInventoryItem, updateItem, deleteItem, setToastMessage } = useKitchen();
@@ -11,13 +11,19 @@ export const EditInventoryModal: React.FC = () => {
   const [quantity, setQuantity] = useState(1);
   const [unit, setUnit] = useState('kg');
   const [daysLeft, setDaysLeft] = useState(3);
-  const [location, setLocation] = useState('Crisper Hydrator');
+  const [location, setLocation] = useState('Vegetable Drawer');
   const [atRisk, setAtRisk] = useState(false);
 
   useEffect(() => {
     if (editingInventoryItem) {
       setName(editingInventoryItem.name);
-      setCategory(editingInventoryItem.category);
+      setCategory(
+        editingInventoryItem.category === 'Staples'
+          ? 'Basic Foods'
+          : editingInventoryItem.category === 'Condiments'
+          ? 'Sauces & Spreads'
+          : editingInventoryItem.category
+      );
       setQuantity(editingInventoryItem.quantity);
       setUnit(editingInventoryItem.unit);
       setDaysLeft(editingInventoryItem.daysLeft);
@@ -46,7 +52,7 @@ export const EditInventoryModal: React.FC = () => {
       urgencyStatus: daysLeft <= 1 ? 'critical' : daysLeft <= 3 ? 'warning' : 'optimal',
     });
 
-    setToastMessage(`Updated shelf entry for ${name.trim()}`);
+    setToastMessage(`Updated ${name.trim()} in My Food`);
     setEditingInventoryItem(null);
   };
 
@@ -61,12 +67,12 @@ export const EditInventoryModal: React.FC = () => {
         {/* Header */}
         <div className="flex items-center justify-between pb-3 border-b border-white/10">
           <div>
-            <h2 className="font-display text-lg font-bold text-white">Edit Inventory Item</h2>
-            <p className="text-xs text-[#8e989b]">Calibrate stock quantity, storage bay & expiry</p>
+            <h2 className="font-display text-lg font-bold text-white">Edit Food Item</h2>
+            <p className="text-xs text-[#8e989b]">Update food amount, storage location, or expiry days</p>
           </div>
           <button
             onClick={() => setEditingInventoryItem(null)}
-            className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 text-[#bfc8cc] hover:text-white flex items-center justify-center transition-all"
+            className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 text-[#bfc8cc] hover:text-white flex items-center justify-center transition-all cursor-pointer"
           >
             <X className="w-4 h-4" />
           </button>
@@ -77,7 +83,7 @@ export const EditInventoryModal: React.FC = () => {
           {/* Item Name */}
           <div>
             <label className="block text-xs font-semibold text-[#8e989b] uppercase tracking-wider mb-1.5">
-              Item Name
+              Food Name
             </label>
             <input
               type="text"
@@ -100,23 +106,23 @@ export const EditInventoryModal: React.FC = () => {
               >
                 <option value="Produce">Produce</option>
                 <option value="Dairy">Dairy</option>
-                <option value="Staples">Staples</option>
+                <option value="Basic Foods">Basic Foods</option>
                 <option value="Lentils & Spices">Lentils & Spices</option>
                 <option value="Bakery">Bakery</option>
                 <option value="Oils">Oils</option>
-                <option value="Condiments">Condiments</option>
+                <option value="Sauces & Spreads">Sauces & Spreads</option>
               </select>
             </div>
 
             <div>
               <label className="block text-xs font-semibold text-[#8e989b] uppercase tracking-wider mb-1.5">
-                Storage Bay
+                Storage Location
               </label>
               <input
                 type="text"
                 value={location}
                 onChange={(e) => setLocation(e.target.value)}
-                placeholder="e.g. Crisper Hydrator"
+                placeholder="e.g. Vegetable Drawer"
                 className="w-full px-3 py-2.5 rounded-xl bg-[#151d20] border border-white/10 text-white text-xs outline-none"
               />
             </div>
@@ -189,7 +195,7 @@ export const EditInventoryModal: React.FC = () => {
                 >
                   ✓
                 </div>
-                <span className="text-xs text-white">Flag as At-Risk</span>
+                <span className="text-xs text-white">Use Soon</span>
               </label>
             </div>
           </div>
@@ -200,7 +206,7 @@ export const EditInventoryModal: React.FC = () => {
           <button
             type="button"
             onClick={handleDelete}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-rose-400 hover:text-white hover:bg-rose-500/20 text-xs font-semibold transition-all"
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-rose-400 hover:text-white hover:bg-rose-500/20 text-xs font-semibold transition-all cursor-pointer"
           >
             <Trash2 className="w-3.5 h-3.5" />
             <span>Remove</span>
@@ -210,14 +216,14 @@ export const EditInventoryModal: React.FC = () => {
             <button
               type="button"
               onClick={() => setEditingInventoryItem(null)}
-              className="px-3.5 py-2 rounded-xl bg-[#151d20] hover:bg-[#232b2e] text-[#bfc8cc] text-xs font-semibold transition-all"
+              className="px-3.5 py-2 rounded-xl bg-[#151d20] hover:bg-[#232b2e] text-[#bfc8cc] text-xs font-semibold transition-all cursor-pointer"
             >
               Cancel
             </button>
             <button
               type="button"
               onClick={handleSave}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#a1e3f9] hover:bg-[#c2effc] text-[#003642] text-xs font-bold transition-all"
+              className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#a1e3f9] hover:bg-[#c2effc] text-[#003642] text-xs font-bold transition-all cursor-pointer"
             >
               <Check className="w-3.5 h-3.5" />
               <span>Save Changes</span>
