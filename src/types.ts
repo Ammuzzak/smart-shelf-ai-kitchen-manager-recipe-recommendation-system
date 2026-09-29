@@ -26,6 +26,7 @@ export interface InventoryItem {
   usedAmountNote?: string;
   caloriesApprox?: number;
   costEstimate?: number;
+  minQuantity?: number;
 }
 
 export interface RecipeStep {
@@ -41,6 +42,18 @@ export interface RecipeStep {
     isRescued?: boolean;
     note?: string;
   }>;
+}
+
+export interface RecipeIngredientDetail {
+  name: string;
+  quantity: string;
+  isAvailable: boolean;
+}
+
+export interface RecipeSubstitution {
+  original: string;
+  substitute: string;
+  note?: string;
 }
 
 export interface Recipe {
@@ -80,6 +93,11 @@ export interface Recipe {
   matchPercentage?: number;
   availableIngredientsList?: string[];
   missingIngredientsList?: string[];
+  ingredientsWithQuantities?: RecipeIngredientDetail[];
+  substitutions?: RecipeSubstitution[];
+  estimatedCookingTime?: string;
+  wasteSavingTip?: string;
+  isAIGenerated?: boolean;
 }
 
 export interface ActivityItem {

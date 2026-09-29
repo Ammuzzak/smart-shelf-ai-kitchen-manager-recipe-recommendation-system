@@ -3,20 +3,20 @@
 @theme {
   --font-display: 'Montserrat', sans-serif;
   --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  --color-brand-bg: #0d1518;
-  --color-brand-surface: #151d20;
-  --color-brand-card: #1c2529;
-  --color-brand-card-hover: #232b2e;
-  --color-brand-overlay: #252f33;
-  --color-brand-primary: #a1e3f9;
-  --color-brand-secondary: #ffb780;
-  --color-brand-alert: #fb7185;
+  --color-brand-bg: #F7F3EA;
+  --color-brand-surface: #FFFDF8;
+  --color-brand-card: #FFFFFF;
+  --color-brand-card-hover: #FBF9F4;
+  --color-brand-overlay: #F0EAE1;
+  --color-brand-primary: #8BAE8B;
+  --color-brand-secondary: #D9826B;
+  --color-brand-alert: #D9826B;
 }
 
 body {
   font-family: var(--font-sans);
-  background-color: #0d1518;
-  color: #dbe4e8;
+  background-color: #F7F3EA;
+  color: #24352F;
   margin: 0;
   padding: 0;
   overflow-x: hidden;
@@ -26,17 +26,17 @@ h1, h2, h3, h4, h5, h6, .font-display {
   font-family: var(--font-display);
 }
 
-/* Glassmorphism and ghost border helper */
+/* Glassmorphism and ghost border helper for cozy theme */
 .ghost-border {
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid #E5DED2;
 }
 
 .ghost-border-active {
-  border: 1px solid rgba(161, 227, 249, 0.35);
+  border: 1px solid #8BAE8B;
 }
 
 .glass-nav {
-  background: rgba(13, 21, 24, 0.85);
+  background: rgba(255, 253, 248, 0.94);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
 }
@@ -47,12 +47,12 @@ h1, h2, h3, h4, h5, h6, .font-display {
   height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: #0d1518;
+  background: #F7F3EA;
 }
 ::-webkit-scrollbar-thumb {
-  background: #252f33;
+  background: #D9D2C5;
   border-radius: 9999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #3f484b;
+  background: #8BAE8B;
 }

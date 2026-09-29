@@ -1,14 +1,15 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   Search,
   Sparkles,
-  ChefHat,
   Check,
   Plus,
-  AlertCircle,
   Clock,
   ShoppingCart,
   Wand2,
+  RefreshCw,
+  Loader2,
+  BookOpen,
 } from 'lucide-react';
 import { useKitchen } from '../context/KitchenContext';
 import { Recipe } from '../types';
@@ -19,10 +20,6 @@ export const RecipeHubView: React.FC = () => {
   const {
     recipes,
     inventory,
-    setActiveRecipe,
-    setActiveCookingRecipe,
-    setActiveCookingStep,
-    setActiveScreen,
     setToastMessage,
     setSelectedRecipeForDetail,
     setIsRecipeDetailOpen,
@@ -31,6 +28,9 @@ export const RecipeHubView: React.FC = () => {
 
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState('All');
+  const [aiGeneratedRecipes, setAiGeneratedRecipes] = useState<Recipe[]>([]);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [generationSource, setGenerationSource] = useState<string | null>(null);
 
   const filterChips = ['All', 'South Indian', 'Breakfast', 'Snacks', 'Lunch / Dinner', 'Most Food Saved'];
 
@@ -39,7 +39,7 @@ export const RecipeHubView: React.FC = () => {
     return extractIngredientsFromSentence(searchQuery);
   }, [searchQuery]);
 
-  // Compute matched recipes split strictly into Can Make Now vs Almost Ready
+  // Compute matched recipes split strictly into Can Make Now vs Almost Ready from stored catalog
   const splitResults = useMemo(() => {
     if (searchQuery.trim()) {
       return matchRecipesWithInput(searchQuery, recipes, inventory);
@@ -62,13 +62,63 @@ export const RecipeHubView: React.FC = () => {
 
   const canMakeNowList = useMemo(() => filterList(splitResults.canMakeNow), [splitResults.canMakeNow, activeFilter]);
   const almostReadyList = useMemo(() => filterList(splitResults.almostReady), [splitResults.almostReady, activeFilter]);
-  const generatedRecipe = splitResults.generatedRecipe;
 
-  const handleStartCooking = (recipe: Recipe) => {
-    setActiveRecipe(recipe);
-    setActiveCookingRecipe(recipe);
-    setActiveCookingStep(1);
-    setActiveScreen('live-cooking');
+  // Trigger Dynamic AI Recipe Generation via Gemini
+  const handleGenerateWithAI = async (customIngredients?: string[]) => {
+    const rawInput = searchQuery.trim();
+    const ingredientsToUse = customIngredients && customIngredients.length > 0
+      ? customIngredients
+      : detectedIngredientsInQuery.length > 0
+      ? detectedIngredientsInQuery
+      : rawInput
+      ? [rawInput]
+      : inventory.filter((i) => i.quantity > 0).map((i) => i.name);
+
+    if (ingredientsToUse.length === 0) {
+      setToastMessage('Please enter at least one ingredient to generate recipes.');
+      return;
+    }
+
+    setIsGenerating(true);
+    setToastMessage('Gemini AI is crafting recipes with your ingredients...');
+
+    try {
+      const response = await fetch('/api/recipes/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ingredients: ingredientsToUse,
+          userInventory: inventory.map((i) => i.name),
+          cuisinePreference: activeFilter === 'All' ? 'Any' : activeFilter,
+          dietaryPreference: 'Vegetarian / Flexible',
+          searchQuery: rawInput,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Server returned ${response.status}`);
+      }
+
+      const data = await response.json();
+      if (Array.isArray(data.recipes) && data.recipes.length > 0) {
+        setAiGeneratedRecipes(data.recipes);
+        setGenerationSource(data.source === 'gemini-ai' ? 'Gemini AI Model' : 'Smart Shelf Culinary Engine');
+        setToastMessage(`Generated ${data.recipes.length} custom recipes for your ingredients!`);
+      } else {
+        setToastMessage('Could not generate custom recipes. Showing catalog matches.');
+      }
+    } catch (err: any) {
+      console.warn('AI recipe generation error, showing catalog fallback:', err);
+      setToastMessage('AI service busy. Displaying closest matching recipes.');
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  // Open recipe details in RecipeDetailModal
+  const handleOpenRecipe = (recipe: Recipe) => {
+    setSelectedRecipeForDetail(recipe);
+    setIsRecipeDetailOpen(true);
   };
 
   const handleAddMissingToShopping = (recipe: Recipe) => {
@@ -86,7 +136,17 @@ export const RecipeHubView: React.FC = () => {
   const handleWhatCanIMakeNow = () => {
     setSearchQuery('');
     setActiveFilter('All');
+    setAiGeneratedRecipes([]);
     setToastMessage('Showing recipes you can make right now with ingredients in My Food!');
+  };
+
+  const handleGenerateFromMyFood = () => {
+    const currentFoodNames = inventory.filter((i) => i.quantity > 0).map((i) => i.name);
+    if (currentFoodNames.length === 0) {
+      setToastMessage('Your My Food inventory is empty. Add food items first!');
+      return;
+    }
+    handleGenerateWithAI(currentFoodNames);
   };
 
   const renderRecipeCard = (
@@ -101,10 +161,7 @@ export const RecipeHubView: React.FC = () => {
         <div>
           {/* Recipe Cover Image with badges */}
           <div
-            onClick={() => {
-              setSelectedRecipeForDetail(recipe);
-              setIsRecipeDetailOpen(true);
-            }}
+            onClick={() => handleOpenRecipe(recipe)}
             className="relative h-48 w-full overflow-hidden cursor-pointer"
           >
             <img
@@ -152,10 +209,7 @@ export const RecipeHubView: React.FC = () => {
           <div className="p-4 space-y-3">
             <div>
               <h3
-                onClick={() => {
-                  setSelectedRecipeForDetail(recipe);
-                  setIsRecipeDetailOpen(true);
-                }}
+                onClick={() => handleOpenRecipe(recipe)}
                 className="font-display text-base font-bold text-white group-hover:text-[#a1e3f9] transition-colors cursor-pointer"
               >
                 {recipe.title}
@@ -217,30 +271,21 @@ export const RecipeHubView: React.FC = () => {
         <div className="p-4 pt-2 border-t border-white/5 flex items-center justify-between gap-2">
           <button
             type="button"
-            onClick={() => {
-              setSelectedRecipeForDetail(recipe);
-              setIsRecipeDetailOpen(true);
-            }}
-            className="text-xs text-[#a1e3f9] hover:underline font-mono font-semibold cursor-pointer"
+            onClick={() => handleOpenRecipe(recipe)}
+            className="px-4 py-2 rounded-xl bg-[#151d20] hover:bg-[#1c2529] border border-white/10 text-white text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer"
           >
-            View Steps
+            <BookOpen className="w-3.5 h-3.5 text-[#a1e3f9]" />
+            <span>View Recipe & Steps</span>
           </button>
 
-          {isReady ? (
-            <button
-              onClick={() => handleStartCooking(recipe)}
-              className="px-4 py-2 rounded-xl bg-[#a1e3f9] hover:bg-[#c2effc] text-[#003642] text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-md shadow-[#a1e3f9]/20"
-            >
-              <ChefHat className="w-3.5 h-3.5" />
-              <span>Start Cooking</span>
-            </button>
-          ) : (
+          {!isReady && missingIngredients.length > 0 && (
             <button
               onClick={() => handleAddMissingToShopping(recipe)}
-              className="px-3 py-1.5 rounded-xl bg-[#ffb780] hover:bg-[#ffd7b2] text-[#4a2800] text-xs font-bold transition-all flex items-center gap-1 cursor-pointer shadow-sm"
+              className="px-3 py-2 rounded-xl bg-[#ffb780] hover:bg-[#ffd7b2] text-[#4a2800] text-xs font-bold transition-all flex items-center gap-1 cursor-pointer shadow-sm"
+              title="Add missing items to Smart Shopping list"
             >
               <ShoppingCart className="w-3.5 h-3.5" />
-              <span>Add to Shopping List</span>
+              <span>Add to Shopping</span>
             </button>
           )}
         </div>
@@ -250,33 +295,67 @@ export const RecipeHubView: React.FC = () => {
 
   return (
     <div className="space-y-7 pb-20">
-      {/* 1. Top Search & "What can I make now?" Button */}
+      {/* 1. Top Search & AI Recipe Generator Actions */}
       <div className="space-y-3">
-        <div className="relative">
-          <Search className="w-4 h-4 text-[#8e989b] absolute left-3.5 top-1/2 -translate-y-1/2" />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Enter ingredients (e.g. 'i have milk, mango, sugar and condensed milk' or 'egg tomato onion')..."
-            className="w-full pl-10 pr-10 py-3.5 rounded-2xl bg-[#151d20] border border-white/10 text-white text-xs sm:text-sm placeholder-[#5a6568] focus:border-[#a1e3f9] focus:ring-1 focus:ring-[#a1e3f9] outline-none transition-all shadow-inner"
-          />
-          {searchQuery && (
-            <button
-              onClick={() => setSearchQuery('')}
-              className="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs text-[#8e989b] hover:text-white bg-white/5 hover:bg-white/10 w-6 h-6 rounded-full flex items-center justify-center transition-all cursor-pointer"
-            >
-              ✕
-            </button>
-          )}
-        </div>
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            handleGenerateWithAI();
+          }}
+          className="relative flex items-center gap-2"
+        >
+          <div className="relative flex-1">
+            <Search className="w-4 h-4 text-[#8e989b] absolute left-3.5 top-1/2 -translate-y-1/2" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Enter ingredients (e.g. 'milk, mango, sugar and condensed milk' or 'tomato, onion')..."
+              className="w-full pl-10 pr-10 py-3.5 rounded-2xl bg-[#151d20] border border-white/10 text-white text-xs sm:text-sm placeholder-[#5a6568] focus:border-[#a1e3f9] focus:ring-1 focus:ring-[#a1e3f9] outline-none transition-all shadow-inner"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSearchQuery('');
+                  setAiGeneratedRecipes([]);
+                }}
+                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs text-[#8e989b] hover:text-white bg-white/5 hover:bg-white/10 w-6 h-6 rounded-full flex items-center justify-center transition-all cursor-pointer"
+              >
+                ✕
+              </button>
+            )}
+          </div>
+
+          <button
+            type="submit"
+            disabled={isGenerating}
+            className="px-5 py-3.5 rounded-2xl bg-gradient-to-r from-[#005a6b] to-[#a1e3f9] hover:from-[#007085] hover:to-[#bbf0ff] text-[#00222b] font-display font-black text-xs sm:text-sm tracking-wide flex items-center gap-2 shadow-lg shadow-[#a1e3f9]/20 transition-all shrink-0 cursor-pointer disabled:opacity-50"
+          >
+            {isGenerating ? (
+              <Loader2 className="w-4 h-4 animate-spin text-[#00222b]" />
+            ) : (
+              <Wand2 className="w-4 h-4 text-[#00222b]" />
+            )}
+            <span>Generate with AI</span>
+          </button>
+        </form>
 
         {/* Natural Language Ingredients Tag Extraction Pill */}
         {detectedIngredientsInQuery.length > 0 && (
           <div className="p-3 rounded-2xl bg-[#a1e3f9]/10 border border-[#a1e3f9]/30 space-y-1.5 shadow-sm">
-            <div className="flex items-center gap-1.5 text-xs text-[#a1e3f9] font-bold">
-              <Sparkles className="w-4 h-4 text-[#a1e3f9]" />
-              <span>RECOGNIZED INGREDIENTS ({detectedIngredientsInQuery.length}):</span>
+            <div className="flex items-center justify-between text-xs text-[#a1e3f9] font-bold">
+              <div className="flex items-center gap-1.5">
+                <Sparkles className="w-4 h-4 text-[#a1e3f9]" />
+                <span>RECOGNIZED INGREDIENTS ({detectedIngredientsInQuery.length}):</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => handleGenerateWithAI()}
+                className="text-[11px] underline text-[#a1e3f9] hover:text-white cursor-pointer"
+              >
+                Run AI Generation →
+              </button>
             </div>
             <div className="flex items-center flex-wrap gap-1.5">
               {detectedIngredientsInQuery.map((std) => (
@@ -291,14 +370,26 @@ export const RecipeHubView: React.FC = () => {
           </div>
         )}
 
-        {/* "What can I make now?" Button */}
-        <button
-          onClick={handleWhatCanIMakeNow}
-          className="w-full py-3.5 px-4 rounded-2xl bg-[#a1e3f9] hover:bg-[#c2effc] text-[#003642] font-display font-black text-sm tracking-wide flex items-center justify-center gap-2 shadow-lg shadow-[#a1e3f9]/20 transition-all transform active:scale-[0.99] cursor-pointer"
-        >
-          <Sparkles className="w-5 h-5 text-[#003642]" />
-          <span>What can I make now? (Uses My Food)</span>
-        </button>
+        {/* Quick Action Buttons */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          <button
+            type="button"
+            onClick={handleGenerateFromMyFood}
+            disabled={isGenerating}
+            className="py-3 px-4 rounded-2xl bg-[#1c2529] hover:bg-[#252f33] border border-[#a1e3f9]/30 text-[#a1e3f9] font-display font-bold text-xs tracking-wide flex items-center justify-center gap-2 shadow-md transition-all cursor-pointer disabled:opacity-50"
+          >
+            <Sparkles className="w-4 h-4 text-[#a1e3f9]" />
+            <span>Generate Recipes for Current My Food</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={handleWhatCanIMakeNow}
+            className="py-3 px-4 rounded-2xl bg-[#151d20] hover:bg-[#1c2529] border border-white/10 text-white font-display font-semibold text-xs tracking-wide flex items-center justify-center gap-2 transition-all cursor-pointer"
+          >
+            <span>What can I make now? (Catalog View)</span>
+          </button>
+        </div>
 
         {/* Filter Pills */}
         <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
@@ -318,60 +409,196 @@ export const RecipeHubView: React.FC = () => {
         </div>
       </div>
 
-      {/* Generated Recipe Banner if user provided ingredients with no direct 100% catalog match */}
-      {generatedRecipe && (
-        <div className="p-5 rounded-3xl bg-gradient-to-br from-[#1c2529] to-[#252f33] border border-[#a1e3f9]/40 space-y-4 shadow-xl">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div className="flex items-center gap-2">
-              <Wand2 className="w-5 h-5 text-[#a1e3f9]" />
-              <span className="text-xs font-mono font-bold text-[#a1e3f9] uppercase tracking-wider">
-                Dynamically Generated For Your Ingredients
-              </span>
-            </div>
-            <span className="text-xs px-2.5 py-1 rounded-full bg-emerald-500/25 border border-emerald-400 text-emerald-300 font-bold">
-              100% Ready to Cook
-            </span>
-          </div>
+      {/* AI Generating Loader */}
+      {isGenerating && (
+        <div className="p-8 rounded-3xl bg-gradient-to-r from-[#151d20] via-[#1c2529] to-[#151d20] border border-[#a1e3f9]/30 text-center space-y-3 shadow-2xl animate-pulse">
+          <Loader2 className="w-8 h-8 text-[#a1e3f9] animate-spin mx-auto" />
+          <h3 className="font-display text-base font-bold text-white">
+            Gemini AI is analyzing your ingredients...
+          </h3>
+          <p className="text-xs text-[#8e989b] max-w-md mx-auto">
+            Crafting tailored recipes with exact quantities, step-by-step instructions, and flexible ingredient substitutions.
+          </p>
+        </div>
+      )}
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
-            <div className="md:col-span-2 space-y-2">
-              <h3 className="font-display text-xl font-black text-white">{generatedRecipe.title}</h3>
-              <p className="text-xs text-[#bfc8cc]">{generatedRecipe.description}</p>
-              <div className="flex flex-wrap gap-1.5 pt-1">
-                {generatedRecipe.pantryItems.map((item, i) => (
-                  <span
-                    key={i}
-                    className="text-xs px-2.5 py-0.5 rounded-lg bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-semibold"
-                  >
-                    ✓ {item}
+      {/* 2. DYNAMICALLY GENERATED AI RECIPES SECTION */}
+      {aiGeneratedRecipes.length > 0 && !isGenerating && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between border-b border-[#a1e3f9]/30 pb-2">
+            <div className="flex items-center gap-2.5">
+              <span className="p-1.5 rounded-lg bg-[#a1e3f9]/20 text-[#a1e3f9]">
+                <Wand2 className="w-4 h-4" />
+              </span>
+              <div>
+                <h2 className="font-display text-lg font-black text-white tracking-wide flex items-center gap-2">
+                  <span>AI DYNAMICALLY GENERATED RECIPES</span>
+                  <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-400/30">
+                    {generationSource || 'Gemini AI'}
                   </span>
-                ))}
+                </h2>
+                <p className="text-[11px] text-[#8e989b]">
+                  Created dynamically based on what you currently have
+                </p>
               </div>
             </div>
+            <button
+              onClick={() => handleGenerateWithAI()}
+              className="text-xs text-[#a1e3f9] hover:underline font-mono flex items-center gap-1 cursor-pointer"
+            >
+              <RefreshCw className="w-3 h-3" />
+              <span>Regenerate</span>
+            </button>
+          </div>
 
-            <div className="flex flex-col gap-2 justify-end">
-              <button
-                onClick={() => handleStartCooking(generatedRecipe)}
-                className="w-full py-3 px-4 rounded-xl bg-[#a1e3f9] hover:bg-[#c2effc] text-[#003642] font-black text-xs flex items-center justify-center gap-2 shadow-lg shadow-[#a1e3f9]/20 transition-all cursor-pointer"
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+            {aiGeneratedRecipes.map((recipe) => (
+              <div
+                key={recipe.id}
+                className="rounded-3xl bg-[#1c2529] border border-[#a1e3f9]/40 hover:border-[#a1e3f9] transition-all overflow-hidden flex flex-col justify-between shadow-xl group"
               >
-                <ChefHat className="w-4 h-4" />
-                <span>Start Cooking Now</span>
-              </button>
-              <button
-                onClick={() => {
-                  setSelectedRecipeForDetail(generatedRecipe);
-                  setIsRecipeDetailOpen(true);
-                }}
-                className="w-full py-2 px-4 rounded-xl bg-[#1c2529] hover:bg-[#252f33] text-white text-xs font-semibold border border-white/10 transition-all cursor-pointer"
-              >
-                View Steps
-              </button>
-            </div>
+                <div>
+                  <div
+                    onClick={() => handleOpenRecipe(recipe)}
+                    className="relative h-44 w-full overflow-hidden cursor-pointer"
+                  >
+                    <img
+                      src={recipe.image}
+                      alt={recipe.title}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-[#1c2529] via-black/40 to-transparent" />
+
+                    <div className="absolute top-3 left-3 flex flex-wrap gap-1.5">
+                      <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-black/60 text-white backdrop-blur-md">
+                        {recipe.estimatedCookingTime || recipe.prepTime}
+                      </span>
+                      <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-[#a1e3f9] text-[#003642] backdrop-blur-md">
+                        {recipe.cuisine}
+                      </span>
+                    </div>
+
+                    <div className="absolute top-3 right-3">
+                      <span className="text-xs font-mono font-bold px-2.5 py-1 rounded-full bg-emerald-500/25 border border-emerald-400 text-emerald-300 backdrop-blur-md">
+                        {recipe.matchPercentage || 100}% Match
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="p-4 space-y-3">
+                    <div>
+                      <h3
+                        onClick={() => handleOpenRecipe(recipe)}
+                        className="font-display text-base font-bold text-white group-hover:text-[#a1e3f9] transition-colors cursor-pointer"
+                      >
+                        {recipe.title}
+                      </h3>
+                      <p className="text-xs text-[#bfc8cc] line-clamp-2 mt-1">{recipe.description}</p>
+                    </div>
+
+                    {/* Ingredients with Quantities & Separated Available vs Missing */}
+                    <div className="space-y-2 pt-2 border-t border-white/5">
+                      {/* You Have / AVAILABLE */}
+                      {recipe.ingredientsWithQuantities && recipe.ingredientsWithQuantities.some((i) => i.isAvailable !== false) ? (
+                        <div className="space-y-1">
+                          <p className="text-[10px] font-mono text-emerald-400 uppercase tracking-wider font-bold flex items-center gap-1">
+                            <Check className="w-3 h-3" />
+                            <span>You Have (Available):</span>
+                          </p>
+                          <div className="flex flex-wrap gap-1.5">
+                            {recipe.ingredientsWithQuantities
+                              .filter((i) => i.isAvailable !== false)
+                              .map((ing, i) => (
+                                <span
+                                  key={i}
+                                  className="text-[11px] px-2 py-0.5 rounded-lg bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 font-medium"
+                                >
+                                  ✓ {ing.name} <span className="opacity-75">({ing.quantity})</span>
+                                </span>
+                              ))}
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="space-y-1">
+                          <p className="text-[10px] font-mono text-emerald-400 uppercase tracking-wider font-bold">
+                            You Have:
+                          </p>
+                          <div className="flex flex-wrap gap-1.5">
+                            {recipe.pantryItems.map((item, i) => (
+                              <span
+                                key={i}
+                                className="text-[11px] px-2 py-0.5 rounded-lg bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 font-medium"
+                              >
+                                ✓ {item}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* You'll Also Need / MISSING */}
+                      {recipe.ingredientsWithQuantities && recipe.ingredientsWithQuantities.some((i) => i.isAvailable === false) && (
+                        <div className="space-y-1">
+                          <p className="text-[10px] font-mono text-[#ffb780] uppercase tracking-wider font-bold flex items-center gap-1">
+                            <Plus className="w-3 h-3" />
+                            <span>You'll Also Need (Missing):</span>
+                          </p>
+                          <div className="flex flex-wrap gap-1.5">
+                            {recipe.ingredientsWithQuantities
+                              .filter((i) => i.isAvailable === false)
+                              .map((ing, i) => (
+                                <span
+                                  key={i}
+                                  className="text-[11px] px-2 py-0.5 rounded-lg bg-[#ffb780]/15 text-[#ffb780] border border-[#ffb780]/30 font-medium"
+                                >
+                                  + {ing.name} <span className="opacity-75">({ing.quantity})</span>
+                                </span>
+                              ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Substitutions preview */}
+                    {recipe.substitutions && recipe.substitutions.length > 0 && (
+                      <div className="p-2.5 rounded-xl bg-[#151d20] border border-white/5 text-[11px] space-y-1">
+                        <span className="text-[#a1e3f9] font-bold">Flexible Swap: </span>
+                        <span className="text-[#8e989b] line-through">{recipe.substitutions[0].original}</span>
+                        <span className="text-white"> → </span>
+                        <span className="text-emerald-300 font-semibold">{recipe.substitutions[0].substitute}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="p-4 pt-2 border-t border-white/5 flex items-center justify-between gap-2">
+                  <button
+                    type="button"
+                    onClick={() => handleOpenRecipe(recipe)}
+                    className="w-full py-2.5 px-4 rounded-xl bg-[#a1e3f9] hover:bg-[#c2effc] text-[#003642] text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-md"
+                  >
+                    <BookOpen className="w-3.5 h-3.5" />
+                    <span>View Recipe & Steps</span>
+                  </button>
+
+                  {recipe.missingIngredients && recipe.missingIngredients.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => handleAddMissingToShopping(recipe)}
+                      className="p-2.5 rounded-xl bg-[#ffb780] hover:bg-[#ffd7b2] text-[#4a2800] text-xs font-bold transition-all cursor-pointer shrink-0"
+                      title="Add missing ingredients to shopping list"
+                    >
+                      <ShoppingCart className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       )}
 
-      {/* SECTION 1: 🍳 I CAN MAKE NOW (100% Ready) */}
+      {/* 3. SECTION: 🍳 I CAN MAKE NOW (100% Ready From Catalog) */}
       <div className="space-y-4">
         <div className="flex items-center justify-between border-b border-white/10 pb-2">
           <div className="flex items-center gap-2.5">
@@ -391,13 +618,20 @@ export const RecipeHubView: React.FC = () => {
             {canMakeNowList.map((res) => renderRecipeCard(res, true))}
           </div>
         ) : (
-          <div className="p-6 rounded-2xl bg-[#1c2529] border border-white/5 text-center text-[#8e989b] text-xs">
-            No exact 100% recipes found in catalog for this selection. Check the dynamic recipe suggestion above or the "Almost Ready" recipes below!
+          <div className="p-6 rounded-2xl bg-[#1c2529] border border-white/5 text-center text-[#8e989b] text-xs space-y-2">
+            <p>No exact 100% recipes found in stored catalog for this selection.</p>
+            <button
+              onClick={() => handleGenerateWithAI()}
+              className="px-4 py-2 rounded-xl bg-[#a1e3f9]/20 text-[#a1e3f9] hover:bg-[#a1e3f9]/30 text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer"
+            >
+              <Wand2 className="w-3.5 h-3.5" />
+              <span>Generate Custom AI Recipes For These Ingredients</span>
+            </button>
           </div>
         )}
       </div>
 
-      {/* SECTION 2: 💡 ALMOST READY (Missing 1 or 2 ingredients) */}
+      {/* 4. SECTION: 💡 ALMOST READY (Missing 1 or 2 ingredients) */}
       <div className="space-y-4 pt-4">
         <div className="flex items-center justify-between border-b border-white/10 pb-2">
           <div className="flex items-center gap-2.5">
@@ -422,26 +656,6 @@ export const RecipeHubView: React.FC = () => {
           </div>
         )}
       </div>
-
-      {/* Empty State when zero results in both */}
-      {canMakeNowList.length === 0 && almostReadyList.length === 0 && !generatedRecipe && (
-        <div className="p-8 text-center rounded-2xl bg-[#1c2529] border border-white/10 text-[#8e989b] space-y-3">
-          <AlertCircle className="w-8 h-8 text-[#ffb780] mx-auto opacity-75" />
-          <p className="text-sm text-white font-medium">No recipes found matching your search.</p>
-          <p className="text-xs text-[#8e989b]">
-            Try entering foods you have like "milk, mango", "egg, tomato", "bread, cheese", or click "What can I make now?".
-          </p>
-          <button
-            onClick={() => {
-              setSearchQuery('');
-              setActiveFilter('All');
-            }}
-            className="px-4 py-2 rounded-xl bg-[#a1e3f9] text-[#003642] text-xs font-bold cursor-pointer"
-          >
-            Show All Recipes
-          </button>
-        </div>
-      )}
     </div>
   );
 };

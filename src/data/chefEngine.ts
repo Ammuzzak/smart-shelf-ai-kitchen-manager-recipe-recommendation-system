@@ -323,10 +323,10 @@ export function queryChef(
       recognized_ingredients: [],
       conversational_reply:
         language === 'tamil' || language === 'tanglish'
-          ? 'Live Cooking start pandrom! Vanga steps paakalaam.'
-          : 'Starting Live Cooking session with step-by-step guidance!',
+          ? 'Recipe Hub-ku kootitu poren! Vanga steps paakalaam.'
+          : 'Opening Recipe Hub with your recipes and step-by-step guidance!',
       recipes: [],
-      action_performed: 'navigate_live_cooking',
+      action_performed: 'navigate_recipes',
     };
   }
 

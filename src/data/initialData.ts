@@ -15,6 +15,7 @@ export const INITIAL_INVENTORY: InventoryItem[] = [
     urgencyStatus: 'optimal',
     caloriesApprox: 340,
     costEstimate: 180,
+    minQuantity: 0.5,
   },
   {
     id: 'inv-sesame-oil',
@@ -31,6 +32,7 @@ export const INITIAL_INVENTORY: InventoryItem[] = [
     usedAmountNote: '-15ml used',
     caloriesApprox: 884,
     costEstimate: 220,
+    minQuantity: 250,
   },
   {
     id: 'inv-shallots',
@@ -47,6 +49,7 @@ export const INITIAL_INVENTORY: InventoryItem[] = [
     usedAmountNote: '-130g used',
     caloriesApprox: 72,
     costEstimate: 40,
+    minQuantity: 300,
   },
   {
     id: 'inv-fermented-batter',
@@ -63,6 +66,7 @@ export const INITIAL_INVENTORY: InventoryItem[] = [
     usedAmountNote: '34h left to over-sour',
     caloriesApprox: 210,
     costEstimate: 60,
+    minQuantity: 500,
   },
   {
     id: 'inv-grated-coconut',
@@ -79,6 +83,7 @@ export const INITIAL_INVENTORY: InventoryItem[] = [
     usedAmountNote: '16h remaining freshness',
     caloriesApprox: 354,
     costEstimate: 45,
+    minQuantity: 200,
   },
   {
     id: 'inv-country-tomatoes',

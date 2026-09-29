@@ -8,7 +8,6 @@ import { InventoryView } from './components/InventoryView';
 import { ShoppingListView } from './components/ShoppingListView';
 import { RescuePlanView } from './components/RescuePlanView';
 import { RecipeHubView } from './components/RecipeHubView';
-import { LiveCookingView } from './components/LiveCookingView';
 import { AnalyticsView } from './components/AnalyticsView';
 import { CommunityView } from './components/CommunityView';
 import { ProfileView } from './components/ProfileView';
@@ -32,8 +31,6 @@ const MainContent: React.FC = () => {
         return <RescuePlanView />;
       case 'recipes':
         return <RecipeHubView />;
-      case 'live-cooking':
-        return <LiveCookingView />;
       case 'analytics':
         return <AnalyticsView />;
       case 'community':
@@ -46,7 +43,7 @@ const MainContent: React.FC = () => {
   };
 
   return (
-    <div className="flex h-screen overflow-hidden bg-[#0d1518] text-[#dbe4e8]">
+    <div className="flex h-screen overflow-hidden bg-[#F7F3EA] text-[#24352F]">
       {/* Desktop Sidebar Navigation */}
       <Sidebar />
 

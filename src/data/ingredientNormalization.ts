@@ -347,6 +347,34 @@ export const INGREDIENT_ALIASES: IngredientAlias[] = [
       'hing', 'asafoetida', 'perungayam'
     ]
   },
+  {
+    standard: 'chicken',
+    displayName: 'Chicken',
+    keywords: [
+      'chicken', 'kozhi', 'koli', 'chickan', 'chickn', 'murgh', 'murg', 'chicken piece', 'chicken breast', 'nattu kozhi'
+    ]
+  },
+  {
+    standard: 'mutton',
+    displayName: 'Mutton / Lamb',
+    keywords: [
+      'mutton', 'aatu kari', 'aattukari', 'goat meat', 'lamb', 'gosht'
+    ]
+  },
+  {
+    standard: 'fish',
+    displayName: 'Fish / Seafood',
+    keywords: [
+      'fish', 'meen', 'machli', 'prawn', 'prawns', 'iraal'
+    ]
+  },
+  {
+    standard: 'paneer',
+    displayName: 'Paneer',
+    keywords: [
+      'paneer', 'panir', 'cottage cheese'
+    ]
+  },
 ];
 
 // Helper to remove punctuation and extra spaces

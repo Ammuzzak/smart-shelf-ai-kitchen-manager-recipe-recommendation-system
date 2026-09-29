@@ -37,6 +37,8 @@ export const HeyChefModal: React.FC = () => {
     startChefTimer,
     pauseChefTimer,
     addChefTimerMins,
+    setSelectedRecipeForDetail,
+    setIsRecipeDetailOpen,
   } = useKitchen();
 
   const [inputQuery, setInputQuery] = useState('');
@@ -275,9 +277,9 @@ export const HeyChefModal: React.FC = () => {
     } else if (response.action_performed === 'navigate_shopping') {
       setActiveScreen('shopping-list');
       setToastMessage('Navigated to Shopping List');
-    } else if (response.action_performed === 'navigate_live_cooking') {
-      setActiveScreen('live-cooking');
-      setToastMessage('Navigated to Live Cooking');
+    } else if (response.action_performed === 'navigate_live_cooking' || response.action_performed === 'navigate_recipes') {
+      setActiveScreen('recipes');
+      setToastMessage('Navigated to Recipe Hub');
     } else if (response.action_performed === 'navigate_dashboard') {
       setActiveScreen('dashboard');
       setToastMessage('Navigated to Dashboard');
@@ -292,15 +294,17 @@ export const HeyChefModal: React.FC = () => {
       (r) => r.title.toLowerCase() === chefRec.name.toLowerCase()
     );
 
+    let targetRec: Recipe;
     if (matched) {
-      setActiveCookingRecipe(matched);
+      targetRec = matched;
     } else {
       // Build lightweight recipe object from chef response
-      const customRec: Recipe = {
+      targetRec = {
         id: `chef-rec-${Date.now()}`,
         title: chefRec.name,
         prepTime: `${chefRec.prep_time_mins} min`,
         cookTime: '0 min',
+        estimatedCookingTime: `${chefRec.prep_time_mins} min`,
         servings: 2,
         description: `Cooked using your available food items: ${chefRec.uses_inventory.join(', ')}.`,
         cuisine: 'Home Kitchen',
@@ -321,14 +325,18 @@ export const HeyChefModal: React.FC = () => {
           duration: '2 min',
           instructions: [st],
         })),
+        ingredientsWithQuantities: chefRec.uses_inventory.map((name: string) => ({
+          name,
+          quantity: 'as available',
+          isAvailable: true,
+        })),
       };
-      setActiveCookingRecipe(customRec);
     }
 
-    setActiveCookingStep(1);
     setIsHeyChefOpen(false);
-    setActiveScreen('live-cooking');
-    setToastMessage(`Started Cooking ${chefRec.name}`);
+    setSelectedRecipeForDetail(targetRec);
+    setIsRecipeDetailOpen(true);
+    setToastMessage(`Viewing Recipe: ${chefRec.name}`);
   };
 
   const handleManualSubmit = (e: React.FormEvent) => {
