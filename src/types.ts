@@ -148,6 +148,8 @@ export interface CommunityPost {
   category: 'Recipes' | 'Tips' | 'Stories';
 }
 
+export type ThemeMode = 'dark' | 'light';
+
 export interface UserSettings {
   name: string;
   roleTitle: string;

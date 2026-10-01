@@ -17,7 +17,8 @@ import { RecipeDetailModal } from './components/RecipeDetailModal';
 import { HeyChefModal } from './components/HeyChefModal';
 
 const MainContent: React.FC = () => {
-  const { activeScreen } = useKitchen();
+  const { activeScreen, theme } = useKitchen();
+  const isDark = theme === 'dark';
 
   const renderScreen = () => {
     switch (activeScreen) {
@@ -43,7 +44,11 @@ const MainContent: React.FC = () => {
   };
 
   return (
-    <div className="flex h-screen overflow-hidden bg-[#F7F3EA] text-[#24352F]">
+    <div
+      className={`flex h-screen overflow-hidden transition-colors duration-200 ${
+        isDark ? 'bg-[#0d1518] text-[#dbe4e8]' : 'bg-[#F7F5EF] text-[#24332D]'
+      }`}
+    >
       {/* Desktop Sidebar Navigation */}
       <Sidebar />
 

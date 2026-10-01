@@ -7,7 +7,8 @@ import {
 import { useKitchen } from '../context/KitchenContext';
 
 export const AnalyticsView: React.FC = () => {
-  const { setToastMessage, userSettings } = useKitchen();
+  const { setToastMessage, userSettings, theme } = useKitchen();
+  const isDark = theme === 'dark';
   const [timeRange, setTimeRange] = useState<'month' | 'quarter' | 'year'>('month');
   const [isRuleApplied, setIsRuleApplied] = useState(false);
 
@@ -76,27 +77,41 @@ export const AnalyticsView: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6 pb-20">
+    <div className={`space-y-6 pb-20 theme-transition ${isDark ? 'text-[#dbe4e8]' : 'text-[#24332D]'}`}>
       {/* Top Header */}
-      <div className="p-5 rounded-2xl bg-[#1c2529] border border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className={`p-5 rounded-2xl border flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm transition-all ${
+        isDark ? 'bg-[#1c2529] border-white/10' : 'bg-[#FFFFFF] border-[#E4DED2]'
+      }`}>
         <div>
-          <span className="text-xs font-bold text-[#a1e3f9] uppercase tracking-wider">Kitchen Statistics</span>
-          <h2 className="font-display text-xl font-bold text-white mt-0.5">Food Waste & Savings</h2>
-          <p className="text-xs text-[#8e989b]">
+          <span className={`text-xs font-bold uppercase tracking-wider ${
+            isDark ? 'text-[#a1e3f9]' : 'text-[#557A62]'
+          }`}>
+            Kitchen Statistics
+          </span>
+          <h2 className={`font-display text-xl font-bold mt-0.5 ${isDark ? 'text-white' : 'text-[#24332D]'}`}>
+            Food Waste & Savings
+          </h2>
+          <p className={`text-xs ${isDark ? 'text-[#8e989b]' : 'text-[#68736D]'}`}>
             See what food gets wasted and how to save money on grocery shopping
           </p>
         </div>
 
         {/* Time range selector */}
-        <div className="flex items-center gap-1.5 p-1 bg-[#151d20] rounded-xl border border-white/5 shrink-0 self-start sm:self-auto">
+        <div className={`flex items-center gap-1.5 p-1 rounded-xl border shrink-0 self-start sm:self-auto ${
+          isDark ? 'bg-[#151d20] border-white/5' : 'bg-[#F7F5EF] border-[#E4DED2]'
+        }`}>
           {(['month', 'quarter', 'year'] as const).map((range) => (
             <button
               key={range}
               onClick={() => setTimeRange(range)}
               className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${
                 timeRange === range
-                  ? 'bg-[#1c2529] text-[#a1e3f9] font-bold border border-white/10'
-                  : 'text-[#8e989b] hover:text-white'
+                  ? isDark
+                    ? 'bg-[#1c2529] text-[#a1e3f9] font-bold border border-white/10'
+                    : 'bg-[#FFFFFF] text-[#557A62] font-bold border border-[#E4DED2] shadow-sm'
+                  : isDark
+                  ? 'text-[#8e989b] hover:text-white'
+                  : 'text-[#68736D] hover:text-[#24332D]'
               }`}
             >
               {range === 'month' ? 'This Month' : range === 'quarter' ? 'Last 90 Days' : 'All-Time'}
@@ -106,103 +121,163 @@ export const AnalyticsView: React.FC = () => {
       </div>
 
       {/* 1. Financial Impact Card */}
-      <div className="p-6 rounded-2xl bg-gradient-to-br from-[#1c2529] via-[#232b2e] to-[#1c2529] border border-[#ffb780]/30 relative overflow-hidden shadow-xl">
+      <div className={`p-6 rounded-2xl border relative overflow-hidden shadow-md transition-all ${
+        isDark
+          ? 'bg-gradient-to-br from-[#1c2529] via-[#232b2e] to-[#1c2529] border-[#ffb780]/30 shadow-xl'
+          : 'bg-gradient-to-br from-[#FFFDF8] via-[#FFFFFF] to-[#FFFDF8] border-[#D9826B]/30'
+      }`}>
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="space-y-1">
-            <span className="text-xs font-bold text-[#ffb780] uppercase tracking-wider">Estimated Money Lost</span>
+            <span className={`text-xs font-bold uppercase tracking-wider ${
+              isDark ? 'text-[#ffb780]' : 'text-[#D9826B]'
+            }`}>
+              Estimated Money Lost
+            </span>
             <div className="flex items-baseline gap-2">
-              <span className="font-display text-4xl font-extrabold text-white">{metrics.financialLoss}</span>
-              <span className="text-xs text-[#ffb780] font-medium">avoidable loss</span>
+              <span className={`font-display text-4xl font-extrabold ${isDark ? 'text-white' : 'text-[#24332D]'}`}>
+                {metrics.financialLoss}
+              </span>
+              <span className={`text-xs font-medium ${isDark ? 'text-[#ffb780]' : 'text-[#D9826B]'}`}>
+                avoidable loss
+              </span>
             </div>
-            <p className="text-xs text-[#bfc8cc]">Cost of food that expired before being cooked</p>
+            <p className={`text-xs ${isDark ? 'text-[#bfc8cc]' : 'text-[#68736D]'}`}>
+              Cost of food that expired before being cooked
+            </p>
           </div>
 
           <div className="flex items-center gap-4 text-xs font-mono">
-            <div className="p-3 rounded-xl bg-[#151d20] border border-white/5">
-              <p className="text-[10px] text-[#8e989b]">Can Be Saved</p>
-              <p className="text-sm font-bold text-emerald-400">{metrics.salvageable} Savable</p>
+            <div className={`p-3 rounded-xl border ${
+              isDark ? 'bg-[#151d20] border-white/5' : 'bg-[#F7F5EF] border-[#E4DED2]'
+            }`}>
+              <p className={`text-[10px] ${isDark ? 'text-[#8e989b]' : 'text-[#68736D]'}`}>Can Be Saved</p>
+              <p className={`text-sm font-bold ${isDark ? 'text-emerald-400' : 'text-[#557A62]'}`}>
+                {metrics.salvageable} Savable
+              </p>
             </div>
-            <div className="p-3 rounded-xl bg-[#151d20] border border-white/5">
-              <p className="text-[10px] text-[#8e989b]">Target Savings</p>
-              <p className="text-sm font-bold text-[#a1e3f9]">{metrics.targetSavings}</p>
+            <div className={`p-3 rounded-xl border ${
+              isDark ? 'bg-[#151d20] border-white/5' : 'bg-[#F7F5EF] border-[#E4DED2]'
+            }`}>
+              <p className={`text-[10px] ${isDark ? 'text-[#8e989b]' : 'text-[#68736D]'}`}>Target Savings</p>
+              <p className={`text-sm font-bold ${isDark ? 'text-[#a1e3f9]' : 'text-[#4B8094]'}`}>
+                {metrics.targetSavings}
+              </p>
             </div>
           </div>
         </div>
       </div>
 
       {/* 2. Most Wasted Food Types */}
-      <div className="p-5 rounded-2xl bg-[#1c2529] border border-white/10 space-y-4">
-        <h3 className="font-display text-base font-bold text-white">Most Wasted Food Types</h3>
+      <div className={`p-5 rounded-2xl border space-y-4 shadow-sm transition-all ${
+        isDark ? 'bg-[#1c2529] border-white/10' : 'bg-[#FFFFFF] border-[#E4DED2]'
+      }`}>
+        <h3 className={`font-display text-base font-bold ${isDark ? 'text-white' : 'text-[#24332D]'}`}>
+          Most Wasted Food Types
+        </h3>
 
         <div className="space-y-3.5">
           {/* Leafy Greens */}
           <div className="space-y-1.5">
             <div className="flex justify-between text-xs">
-              <span className="text-white font-medium">Leafy Greens (Spinach, Coriander, Methi)</span>
-              <span className="font-mono font-bold text-[#ffb780]">{metrics.greens}%</span>
+              <span className={`font-medium ${isDark ? 'text-white' : 'text-[#24332D]'}`}>
+                Leafy Greens (Spinach, Coriander, Methi)
+              </span>
+              <span className={`font-mono font-bold ${isDark ? 'text-[#ffb780]' : 'text-[#D9826B]'}`}>
+                {metrics.greens}%
+              </span>
             </div>
-            <div className="w-full h-2.5 rounded-full bg-[#151d20] overflow-hidden">
-              <div style={{ width: `${metrics.greens}%` }} className="h-full rounded-full bg-[#ffb780] transition-all duration-500" />
+            <div className={`w-full h-2.5 rounded-full overflow-hidden ${isDark ? 'bg-[#151d20]' : 'bg-[#EFE9DE]'}`}>
+              <div
+                style={{ width: `${metrics.greens}%` }}
+                className={`h-full rounded-full transition-all duration-500 ${isDark ? 'bg-[#ffb780]' : 'bg-[#D9826B]'}`}
+              />
             </div>
           </div>
 
           {/* Dairy */}
           <div className="space-y-1.5">
             <div className="flex justify-between text-xs">
-              <span className="text-white font-medium">Dairy (Milk, Cream, Yogurt)</span>
-              <span className="font-mono font-bold text-[#a1e3f9]">{metrics.dairy}%</span>
+              <span className={`font-medium ${isDark ? 'text-white' : 'text-[#24332D]'}`}>
+                Dairy (Milk, Cream, Yogurt)
+              </span>
+              <span className={`font-mono font-bold ${isDark ? 'text-[#a1e3f9]' : 'text-[#4B8094]'}`}>
+                {metrics.dairy}%
+              </span>
             </div>
-            <div className="w-full h-2.5 rounded-full bg-[#151d20] overflow-hidden">
-              <div style={{ width: `${metrics.dairy}%` }} className="h-full rounded-full bg-[#a1e3f9] transition-all duration-500" />
+            <div className={`w-full h-2.5 rounded-full overflow-hidden ${isDark ? 'bg-[#151d20]' : 'bg-[#EFE9DE]'}`}>
+              <div
+                style={{ width: `${metrics.dairy}%` }}
+                className={`h-full rounded-full transition-all duration-500 ${isDark ? 'bg-[#a1e3f9]' : 'bg-[#8EC5D6]'}`}
+              />
             </div>
           </div>
 
           {/* Bakery */}
           <div className="space-y-1.5">
             <div className="flex justify-between text-xs">
-              <span className="text-white font-medium">Bakery & Batters</span>
-              <span className="font-mono font-bold text-emerald-400">{metrics.bakery}%</span>
+              <span className={`font-medium ${isDark ? 'text-white' : 'text-[#24332D]'}`}>
+                Bakery & Batters
+              </span>
+              <span className={`font-mono font-bold ${isDark ? 'text-emerald-400' : 'text-[#557A62]'}`}>
+                {metrics.bakery}%
+              </span>
             </div>
-            <div className="w-full h-2.5 rounded-full bg-[#151d20] overflow-hidden">
-              <div style={{ width: `${metrics.bakery}%` }} className="h-full rounded-full bg-emerald-400 transition-all duration-500" />
+            <div className={`w-full h-2.5 rounded-full overflow-hidden ${isDark ? 'bg-[#151d20]' : 'bg-[#EFE9DE]'}`}>
+              <div
+                style={{ width: `${metrics.bakery}%` }}
+                className={`h-full rounded-full transition-all duration-500 ${isDark ? 'bg-emerald-400' : 'bg-[#557A62]'}`}
+              />
             </div>
           </div>
 
           {/* Others */}
           <div className="space-y-1.5">
             <div className="flex justify-between text-xs">
-              <span className="text-white font-medium">Others (Sauces & Spreads, Fruit)</span>
-              <span className="font-mono font-bold text-[#8e989b]">{metrics.others}%</span>
+              <span className={`font-medium ${isDark ? 'text-white' : 'text-[#24332D]'}`}>
+                Others (Sauces & Spreads, Fruit)
+              </span>
+              <span className={`font-mono font-bold ${isDark ? 'text-[#8e989b]' : 'text-[#68736D]'}`}>
+                {metrics.others}%
+              </span>
             </div>
-            <div className="w-full h-2.5 rounded-full bg-[#151d20] overflow-hidden">
-              <div style={{ width: `${metrics.others}%` }} className="h-full rounded-full bg-[#8e989b] transition-all duration-500" />
+            <div className={`w-full h-2.5 rounded-full overflow-hidden ${isDark ? 'bg-[#151d20]' : 'bg-[#EFE9DE]'}`}>
+              <div
+                style={{ width: `${metrics.others}%` }}
+                className={`h-full rounded-full transition-all duration-500 ${isDark ? 'bg-[#8e989b]' : 'bg-[#A99BCB]'}`}
+              />
             </div>
           </div>
         </div>
       </div>
 
       {/* 3. Helpful Suggestion */}
-      <div className="p-5 rounded-2xl bg-[#1c2529] border border-[#a1e3f9]/30 space-y-3">
+      <div className={`p-5 rounded-2xl border space-y-3 shadow-sm transition-all ${
+        isDark ? 'bg-[#1c2529] border-[#a1e3f9]/30' : 'bg-[#FFFFFF] border-[#6FAF8F]/30'
+      }`}>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Sparkles className="w-4 h-4 text-[#a1e3f9]" />
-            <h3 className="font-display text-base font-bold text-white">Smart Shopping Tip</h3>
+            <Sparkles className={`w-4 h-4 ${isDark ? 'text-[#a1e3f9]' : 'text-[#557A62]'}`} />
+            <h3 className={`font-display text-base font-bold ${isDark ? 'text-white' : 'text-[#24332D]'}`}>
+              Smart Shopping Tip
+            </h3>
           </div>
           {isRuleApplied && (
-            <span className="flex items-center gap-1 text-[11px] text-emerald-400 font-bold">
+            <span className={`flex items-center gap-1 text-[11px] font-bold ${
+              isDark ? 'text-emerald-400' : 'text-[#557A62]'
+            }`}>
               <CheckCircle2 className="w-3.5 h-3.5" />
               <span>Rule Saved</span>
             </span>
           )}
         </div>
-        <p className="text-xs text-[#bfc8cc] leading-relaxed">
-          You often have leftover <strong className="text-white">Spinach on Wednesdays</strong>. Try buying it fresh on{' '}
-          <strong className="text-[#a1e3f9]">Thursdays</strong> instead to match your weekend cooking habits.
+        <p className={`text-xs leading-relaxed ${isDark ? 'text-[#bfc8cc]' : 'text-[#68736D]'}`}>
+          You often have leftover <strong className={isDark ? 'text-white' : 'text-[#24332D]'}>Spinach on Wednesdays</strong>. Try buying it fresh on{' '}
+          <strong className={isDark ? 'text-[#a1e3f9]' : 'text-[#557A62]'}>Thursdays</strong> instead to match your weekend cooking habits.
         </p>
 
         <div className="pt-2 flex flex-wrap items-center justify-between gap-3 text-xs">
-          <div className="flex items-center gap-2 text-[#8e989b]">
-            <Calendar className="w-3.5 h-3.5 text-[#ffb780]" />
+          <div className={`flex items-center gap-2 ${isDark ? 'text-[#8e989b]' : 'text-[#68736D]'}`}>
+            <Calendar className={`w-3.5 h-3.5 ${isDark ? 'text-[#ffb780]' : 'text-[#D9826B]'}`} />
             <span>Next recommended shopping date: Thursday, Sep 15</span>
           </div>
           <button
@@ -210,8 +285,12 @@ export const AnalyticsView: React.FC = () => {
             onClick={handleApplyRule}
             className={`px-3 py-1.5 rounded-xl font-bold text-xs transition-all cursor-pointer ${
               isRuleApplied
-                ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 cursor-default'
-                : 'bg-[#a1e3f9] hover:bg-[#c2effc] text-[#003642]'
+                ? isDark
+                  ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 cursor-default'
+                  : 'bg-[#6FAF8F]/20 text-[#43634F] border border-[#6FAF8F]/30 cursor-default'
+                : isDark
+                ? 'bg-[#a1e3f9] hover:bg-[#c2effc] text-[#003642]'
+                : 'bg-[#557A62] hover:bg-[#43634F] text-white shadow-sm'
             }`}
           >
             {isRuleApplied ? 'Shopping Date Shifted' : 'Apply Shopping Tip'}
@@ -221,17 +300,29 @@ export const AnalyticsView: React.FC = () => {
 
       {/* 4. Lifetime Environmental Impact */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="p-4 rounded-2xl bg-[#1c2529] border border-white/5 text-center">
-          <p className="text-xs text-[#8e989b]">Total Food Saved</p>
-          <p className="font-display text-2xl font-extrabold text-emerald-400 mt-1">{metrics.salvagedKg}</p>
+        <div className={`p-4 rounded-2xl border text-center shadow-sm transition-all ${
+          isDark ? 'bg-[#1c2529] border-white/5' : 'bg-[#FFFFFF] border-[#E4DED2]'
+        }`}>
+          <p className={`text-xs ${isDark ? 'text-[#8e989b]' : 'text-[#68736D]'}`}>Total Food Saved</p>
+          <p className={`font-display text-2xl font-extrabold mt-1 ${isDark ? 'text-emerald-400' : 'text-[#557A62]'}`}>
+            {metrics.salvagedKg}
+          </p>
         </div>
-        <div className="p-4 rounded-2xl bg-[#1c2529] border border-white/5 text-center">
-          <p className="text-xs text-[#8e989b]">Carbon Prevented</p>
-          <p className="font-display text-2xl font-extrabold text-[#a1e3f9] mt-1">{metrics.carbon}</p>
+        <div className={`p-4 rounded-2xl border text-center shadow-sm transition-all ${
+          isDark ? 'bg-[#1c2529] border-white/5' : 'bg-[#FFFFFF] border-[#E4DED2]'
+        }`}>
+          <p className={`text-xs ${isDark ? 'text-[#8e989b]' : 'text-[#68736D]'}`}>Carbon Prevented</p>
+          <p className={`font-display text-2xl font-extrabold mt-1 ${isDark ? 'text-[#a1e3f9]' : 'text-[#4B8094]'}`}>
+            {metrics.carbon}
+          </p>
         </div>
-        <div className="p-4 rounded-2xl bg-[#1c2529] border border-white/5 text-center">
-          <p className="text-xs text-[#8e989b]">Total Money Saved</p>
-          <p className="font-display text-2xl font-extrabold text-[#ffb780] mt-1">{metrics.cumSaved}</p>
+        <div className={`p-4 rounded-2xl border text-center shadow-sm transition-all ${
+          isDark ? 'bg-[#1c2529] border-white/5' : 'bg-[#FFFFFF] border-[#E4DED2]'
+        }`}>
+          <p className={`text-xs ${isDark ? 'text-[#8e989b]' : 'text-[#68736D]'}`}>Total Money Saved</p>
+          <p className={`font-display text-2xl font-extrabold mt-1 ${isDark ? 'text-[#ffb780]' : 'text-[#D9826B]'}`}>
+            {metrics.cumSaved}
+          </p>
         </div>
       </div>
     </div>

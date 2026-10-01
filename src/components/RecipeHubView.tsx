@@ -24,7 +24,9 @@ export const RecipeHubView: React.FC = () => {
     setSelectedRecipeForDetail,
     setIsRecipeDetailOpen,
     addShoppingItem,
+    theme,
   } = useKitchen();
+  const isDark = theme === 'dark';
 
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState('All');
@@ -156,7 +158,11 @@ export const RecipeHubView: React.FC = () => {
     return (
       <div
         key={recipe.id}
-        className="rounded-2xl bg-[#1c2529] border border-white/10 hover:border-white/20 transition-all overflow-hidden flex flex-col justify-between group shadow-lg"
+        className={`rounded-2xl border transition-all overflow-hidden flex flex-col justify-between group shadow-sm ${
+          isDark
+            ? 'bg-[#1c2529] border-white/10 hover:border-white/20'
+            : 'bg-[#FFFFFF] border-[#E4DED2] hover:border-[#6FAF8F]/40'
+        }`}
       >
         <div>
           {/* Recipe Cover Image with badges */}
@@ -170,14 +176,20 @@ export const RecipeHubView: React.FC = () => {
               referrerPolicy="no-referrer"
               className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
             />
-            <div className="absolute inset-0 bg-gradient-to-t from-[#1c2529] via-transparent to-black/30" />
+            <div className={`absolute inset-0 ${
+              isDark
+                ? 'bg-gradient-to-t from-[#1c2529] via-transparent to-black/30'
+                : 'bg-gradient-to-t from-black/60 via-transparent to-black/20'
+            }`} />
 
             {/* Top-left pills */}
             <div className="absolute top-3 left-3 flex flex-wrap gap-1.5">
               <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-black/60 text-white backdrop-blur-md">
                 {recipe.prepTime}
               </span>
-              <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-[#a1e3f9]/90 text-[#003642] backdrop-blur-md">
+              <span className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded backdrop-blur-md ${
+                isDark ? 'bg-[#a1e3f9]/90 text-[#003642]' : 'bg-[#FFFFFF]/90 text-[#24332D]'
+              }`}>
                 {recipe.cuisine}
               </span>
             </div>
@@ -185,12 +197,20 @@ export const RecipeHubView: React.FC = () => {
             {/* Top-right Match Status Badge */}
             <div className="absolute top-3 right-3">
               {isReady ? (
-                <div className="text-xs font-mono font-extrabold px-2.5 py-1 rounded-full border backdrop-blur-md flex items-center gap-1 shadow-md text-emerald-300 bg-emerald-500/25 border-emerald-400">
+                <div className={`text-xs font-mono font-extrabold px-2.5 py-1 rounded-full border backdrop-blur-md flex items-center gap-1 shadow-md ${
+                  isDark
+                    ? 'text-emerald-300 bg-emerald-500/25 border-emerald-400'
+                    : 'text-white bg-[#557A62]/95 border-[#6FAF8F]'
+                }`}>
                   <Check className="w-3.5 h-3.5" />
                   <span>100% Ready</span>
                 </div>
               ) : (
-                <div className="text-xs font-mono font-extrabold px-2.5 py-1 rounded-full border backdrop-blur-md flex items-center gap-1 shadow-md text-[#ffb780] bg-[#ffb780]/20 border-[#ffb780]/40">
+                <div className={`text-xs font-mono font-extrabold px-2.5 py-1 rounded-full border backdrop-blur-md flex items-center gap-1 shadow-md ${
+                  isDark
+                    ? 'text-[#ffb780] bg-[#ffb780]/20 border-[#ffb780]/40'
+                    : 'text-white bg-[#D9826B]/95 border-[#D9826B]'
+                }`}>
                   <Sparkles className="w-3 h-3" />
                   <span>{matchPercentage}% Match</span>
                 </div>
@@ -199,7 +219,11 @@ export const RecipeHubView: React.FC = () => {
 
             {/* Food Saved Ribbon */}
             <div className="absolute bottom-2 right-3">
-              <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-emerald-500/90 text-[#002b1c] backdrop-blur-md">
+              <span className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded backdrop-blur-md ${
+                isDark
+                  ? 'bg-emerald-500/90 text-[#002b1c]'
+                  : 'bg-[#557A62] text-white shadow-sm'
+              }`}>
                 Saves {recipe.moneySaved}
               </span>
             </div>
@@ -210,18 +234,26 @@ export const RecipeHubView: React.FC = () => {
             <div>
               <h3
                 onClick={() => handleOpenRecipe(recipe)}
-                className="font-display text-base font-bold text-white group-hover:text-[#a1e3f9] transition-colors cursor-pointer"
+                className={`font-display text-base font-bold transition-colors cursor-pointer ${
+                  isDark
+                    ? 'text-white group-hover:text-[#a1e3f9]'
+                    : 'text-[#24332D] group-hover:text-[#557A62]'
+                }`}
               >
                 {recipe.title}
               </h3>
-              <p className="text-xs text-[#8e989b] line-clamp-2 mt-1">{recipe.description}</p>
+              <p className={`text-xs line-clamp-2 mt-1 ${isDark ? 'text-[#8e989b]' : 'text-[#68736D]'}`}>
+                {recipe.description}
+              </p>
             </div>
 
             {/* Ingredients breakdown */}
-            <div className="space-y-2 pt-1 border-t border-white/5">
+            <div className={`space-y-2 pt-1 border-t ${isDark ? 'border-white/5' : 'border-[#E4DED2]'}`}>
               {/* You Have */}
               <div className="space-y-1">
-                <p className="text-[10px] text-emerald-400 uppercase font-bold tracking-wider flex items-center gap-1">
+                <p className={`text-[10px] uppercase font-bold tracking-wider flex items-center gap-1 ${
+                  isDark ? 'text-emerald-400' : 'text-[#557A62]'
+                }`}>
                   <Check className="w-3 h-3" />
                   <span>You have ({availableIngredients.length}):</span>
                 </p>
@@ -229,7 +261,11 @@ export const RecipeHubView: React.FC = () => {
                   {availableIngredients.map((ing, i) => (
                     <span
                       key={i}
-                      className="text-[11px] px-2 py-0.5 rounded-md bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 font-medium"
+                      className={`text-[11px] px-2 py-0.5 rounded-md font-medium border ${
+                        isDark
+                          ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30'
+                          : 'bg-[#6FAF8F]/15 text-[#43634F] border-[#6FAF8F]/30'
+                      }`}
                     >
                       ✓ {ing}
                     </span>
@@ -240,7 +276,9 @@ export const RecipeHubView: React.FC = () => {
               {/* Missing ingredients */}
               {missingIngredients.length > 0 && (
                 <div className="space-y-1">
-                  <p className="text-[10px] text-[#ffb780] uppercase font-bold tracking-wider flex items-center gap-1">
+                  <p className={`text-[10px] uppercase font-bold tracking-wider flex items-center gap-1 ${
+                    isDark ? 'text-[#ffb780]' : 'text-[#D9826B]'
+                  }`}>
                     <Plus className="w-3 h-3" />
                     <span>Missing ({missingIngredients.length}):</span>
                   </p>
@@ -248,7 +286,11 @@ export const RecipeHubView: React.FC = () => {
                     {missingIngredients.map((item, i) => (
                       <span
                         key={i}
-                        className="text-[11px] px-2 py-0.5 rounded-md bg-[#ffb780]/15 text-[#ffb780] border border-[#ffb780]/30 font-medium"
+                        className={`text-[11px] px-2 py-0.5 rounded-md font-medium border ${
+                          isDark
+                            ? 'bg-[#ffb780]/15 text-[#ffb780] border-[#ffb780]/30'
+                            : 'bg-[#F2B49F]/25 text-[#B8573E] border-[#F2B49F]/40'
+                        }`}
                       >
                         ❌ {item}
                       </span>
@@ -259,7 +301,7 @@ export const RecipeHubView: React.FC = () => {
 
               {/* Assumed basic pantry ingredient notice */}
               {assumedBasicIngredients && assumedBasicIngredients.length > 0 && (
-                <p className="text-[10px] text-[#8e989b] italic">
+                <p className={`text-[10px] italic ${isDark ? 'text-[#8e989b]' : 'text-[#8A9590]'}`}>
                   Uses basic pantry: {assumedBasicIngredients.join(', ')}
                 </p>
               )}
@@ -268,20 +310,30 @@ export const RecipeHubView: React.FC = () => {
         </div>
 
         {/* Bottom Actions */}
-        <div className="p-4 pt-2 border-t border-white/5 flex items-center justify-between gap-2">
+        <div className={`p-4 pt-2 border-t flex items-center justify-between gap-2 ${
+          isDark ? 'border-white/5' : 'border-[#E4DED2]'
+        }`}>
           <button
             type="button"
             onClick={() => handleOpenRecipe(recipe)}
-            className="px-4 py-2 rounded-xl bg-[#151d20] hover:bg-[#1c2529] border border-white/10 text-white text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer"
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer border ${
+              isDark
+                ? 'bg-[#151d20] hover:bg-[#1c2529] border-white/10 text-white'
+                : 'bg-[#F7F5EF] hover:bg-[#EFE9DE] border-[#E4DED2] text-[#24332D]'
+            }`}
           >
-            <BookOpen className="w-3.5 h-3.5 text-[#a1e3f9]" />
+            <BookOpen className={`w-3.5 h-3.5 ${isDark ? 'text-[#a1e3f9]' : 'text-[#557A62]'}`} />
             <span>View Recipe & Steps</span>
           </button>
 
           {!isReady && missingIngredients.length > 0 && (
             <button
               onClick={() => handleAddMissingToShopping(recipe)}
-              className="px-3 py-2 rounded-xl bg-[#ffb780] hover:bg-[#ffd7b2] text-[#4a2800] text-xs font-bold transition-all flex items-center gap-1 cursor-pointer shadow-sm"
+              className={`px-3 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1 cursor-pointer shadow-sm ${
+                isDark
+                  ? 'bg-[#ffb780] hover:bg-[#ffd7b2] text-[#4a2800]'
+                  : 'bg-[#D5A84C] hover:bg-[#C2963A] text-white'
+              }`}
               title="Add missing items to Smart Shopping list"
             >
               <ShoppingCart className="w-3.5 h-3.5" />
@@ -294,7 +346,7 @@ export const RecipeHubView: React.FC = () => {
   };
 
   return (
-    <div className="space-y-7 pb-20">
+    <div className={`space-y-7 pb-20 theme-transition ${isDark ? 'text-[#dbe4e8]' : 'text-[#24332D]'}`}>
       {/* 1. Top Search & AI Recipe Generator Actions */}
       <div className="space-y-3">
         <form
@@ -305,13 +357,19 @@ export const RecipeHubView: React.FC = () => {
           className="relative flex items-center gap-2"
         >
           <div className="relative flex-1">
-            <Search className="w-4 h-4 text-[#8e989b] absolute left-3.5 top-1/2 -translate-y-1/2" />
+            <Search className={`w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 ${
+              isDark ? 'text-[#8e989b]' : 'text-[#68736D]'
+            }`} />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Enter ingredients (e.g. 'milk, mango, sugar and condensed milk' or 'tomato, onion')..."
-              className="w-full pl-10 pr-10 py-3.5 rounded-2xl bg-[#151d20] border border-white/10 text-white text-xs sm:text-sm placeholder-[#5a6568] focus:border-[#a1e3f9] focus:ring-1 focus:ring-[#a1e3f9] outline-none transition-all shadow-inner"
+              className={`w-full pl-10 pr-10 py-3.5 rounded-2xl border text-xs sm:text-sm outline-none transition-all shadow-inner ${
+                isDark
+                  ? 'bg-[#151d20] border-white/10 text-white placeholder-[#5a6568] focus:border-[#a1e3f9] focus:ring-1 focus:ring-[#a1e3f9]'
+                  : 'bg-[#FFFFFF] border-[#E4DED2] text-[#24332D] placeholder-[#8A9590] focus:border-[#6FAF8F] focus:ring-1 focus:ring-[#6FAF8F]'
+              }`}
             />
             {searchQuery && (
               <button
@@ -320,7 +378,11 @@ export const RecipeHubView: React.FC = () => {
                   setSearchQuery('');
                   setAiGeneratedRecipes([]);
                 }}
-                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs text-[#8e989b] hover:text-white bg-white/5 hover:bg-white/10 w-6 h-6 rounded-full flex items-center justify-center transition-all cursor-pointer"
+                className={`absolute right-3.5 top-1/2 -translate-y-1/2 text-xs w-6 h-6 rounded-full flex items-center justify-center transition-all cursor-pointer ${
+                  isDark
+                    ? 'text-[#8e989b] hover:text-white bg-white/5 hover:bg-white/10'
+                    : 'text-[#68736D] hover:text-[#24332D] bg-[#F7F5EF] hover:bg-[#EFE9DE]'
+                }`}
               >
                 ✕
               </button>
@@ -330,12 +392,16 @@ export const RecipeHubView: React.FC = () => {
           <button
             type="submit"
             disabled={isGenerating}
-            className="px-5 py-3.5 rounded-2xl bg-gradient-to-r from-[#005a6b] to-[#a1e3f9] hover:from-[#007085] hover:to-[#bbf0ff] text-[#00222b] font-display font-black text-xs sm:text-sm tracking-wide flex items-center gap-2 shadow-lg shadow-[#a1e3f9]/20 transition-all shrink-0 cursor-pointer disabled:opacity-50"
+            className={`px-5 py-3.5 rounded-2xl font-display font-black text-xs sm:text-sm tracking-wide flex items-center gap-2 transition-all shrink-0 cursor-pointer disabled:opacity-50 shadow-md hover:-translate-y-0.5 ${
+              isDark
+                ? 'bg-gradient-to-r from-[#005a6b] to-[#a1e3f9] hover:from-[#007085] hover:to-[#bbf0ff] text-[#00222b] shadow-[#a1e3f9]/20'
+                : 'bg-[#557A62] hover:bg-[#43634F] text-white shadow-[#557A62]/20'
+            }`}
           >
             {isGenerating ? (
-              <Loader2 className="w-4 h-4 animate-spin text-[#00222b]" />
+              <Loader2 className={`w-4 h-4 animate-spin ${isDark ? 'text-[#00222b]' : 'text-white'}`} />
             ) : (
-              <Wand2 className="w-4 h-4 text-[#00222b]" />
+              <Wand2 className={`w-4 h-4 ${isDark ? 'text-[#00222b]' : 'text-white'}`} />
             )}
             <span>Generate with AI</span>
           </button>
@@ -343,16 +409,24 @@ export const RecipeHubView: React.FC = () => {
 
         {/* Natural Language Ingredients Tag Extraction Pill */}
         {detectedIngredientsInQuery.length > 0 && (
-          <div className="p-3 rounded-2xl bg-[#a1e3f9]/10 border border-[#a1e3f9]/30 space-y-1.5 shadow-sm">
-            <div className="flex items-center justify-between text-xs text-[#a1e3f9] font-bold">
+          <div className={`p-3 rounded-2xl border space-y-1.5 shadow-sm ${
+            isDark
+              ? 'bg-[#a1e3f9]/10 border-[#a1e3f9]/30'
+              : 'bg-[#6FAF8F]/10 border-[#6FAF8F]/30'
+          }`}>
+            <div className={`flex items-center justify-between text-xs font-bold ${
+              isDark ? 'text-[#a1e3f9]' : 'text-[#43634F]'
+            }`}>
               <div className="flex items-center gap-1.5">
-                <Sparkles className="w-4 h-4 text-[#a1e3f9]" />
+                <Sparkles className="w-4 h-4" />
                 <span>RECOGNIZED INGREDIENTS ({detectedIngredientsInQuery.length}):</span>
               </div>
               <button
                 type="button"
                 onClick={() => handleGenerateWithAI()}
-                className="text-[11px] underline text-[#a1e3f9] hover:text-white cursor-pointer"
+                className={`text-[11px] underline cursor-pointer ${
+                  isDark ? 'text-[#a1e3f9] hover:text-white' : 'text-[#557A62] hover:text-[#24332D]'
+                }`}
               >
                 Run AI Generation →
               </button>
@@ -361,7 +435,11 @@ export const RecipeHubView: React.FC = () => {
               {detectedIngredientsInQuery.map((std) => (
                 <span
                   key={std}
-                  className="px-2.5 py-1 rounded-lg bg-[#a1e3f9]/25 text-[#a1e3f9] font-bold text-xs flex items-center gap-1 border border-[#a1e3f9]/40"
+                  className={`px-2.5 py-1 rounded-lg font-bold text-xs flex items-center gap-1 border ${
+                    isDark
+                      ? 'bg-[#a1e3f9]/25 text-[#a1e3f9] border-[#a1e3f9]/40'
+                      : 'bg-[#6FAF8F]/20 text-[#43634F] border-[#6FAF8F]/35'
+                  }`}
                 >
                   ✓ {getIngredientDisplayName(std)}
                 </span>
@@ -376,16 +454,24 @@ export const RecipeHubView: React.FC = () => {
             type="button"
             onClick={handleGenerateFromMyFood}
             disabled={isGenerating}
-            className="py-3 px-4 rounded-2xl bg-[#1c2529] hover:bg-[#252f33] border border-[#a1e3f9]/30 text-[#a1e3f9] font-display font-bold text-xs tracking-wide flex items-center justify-center gap-2 shadow-md transition-all cursor-pointer disabled:opacity-50"
+            className={`py-3 px-4 rounded-2xl font-display font-bold text-xs tracking-wide flex items-center justify-center gap-2 shadow-sm transition-all cursor-pointer disabled:opacity-50 border ${
+              isDark
+                ? 'bg-[#1c2529] hover:bg-[#252f33] border-[#a1e3f9]/30 text-[#a1e3f9]'
+                : 'bg-[#FFFFFF] hover:bg-[#F7F5EF] border-[#6FAF8F]/40 text-[#557A62]'
+            }`}
           >
-            <Sparkles className="w-4 h-4 text-[#a1e3f9]" />
+            <Sparkles className="w-4 h-4" />
             <span>Generate Recipes for Current My Food</span>
           </button>
 
           <button
             type="button"
             onClick={handleWhatCanIMakeNow}
-            className="py-3 px-4 rounded-2xl bg-[#151d20] hover:bg-[#1c2529] border border-white/10 text-white font-display font-semibold text-xs tracking-wide flex items-center justify-center gap-2 transition-all cursor-pointer"
+            className={`py-3 px-4 rounded-2xl font-display font-semibold text-xs tracking-wide flex items-center justify-center gap-2 transition-all cursor-pointer border ${
+              isDark
+                ? 'bg-[#151d20] hover:bg-[#1c2529] border-white/10 text-white'
+                : 'bg-[#FFFFFF] hover:bg-[#F7F5EF] border-[#E4DED2] text-[#24332D]'
+            }`}
           >
             <span>What can I make now? (Catalog View)</span>
           </button>
@@ -399,8 +485,12 @@ export const RecipeHubView: React.FC = () => {
               onClick={() => setActiveFilter(chip)}
               className={`px-3.5 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all cursor-pointer ${
                 activeFilter === chip
-                  ? 'bg-[#1c2529] text-[#a1e3f9] border border-[#a1e3f9]/40 font-bold shadow-sm'
-                  : 'bg-[#151d20] text-[#bfc8cc] hover:text-white border border-white/5'
+                  ? isDark
+                    ? 'bg-[#1c2529] text-[#a1e3f9] border border-[#a1e3f9]/40 font-bold shadow-sm'
+                    : 'bg-[#557A62] text-white font-bold shadow-sm'
+                  : isDark
+                  ? 'bg-[#151d20] text-[#bfc8cc] hover:text-white border border-white/5'
+                  : 'bg-[#FFFFFF] text-[#68736D] hover:text-[#24332D] border border-[#E4DED2]'
               }`}
             >
               {chip}
@@ -411,12 +501,16 @@ export const RecipeHubView: React.FC = () => {
 
       {/* AI Generating Loader */}
       {isGenerating && (
-        <div className="p-8 rounded-3xl bg-gradient-to-r from-[#151d20] via-[#1c2529] to-[#151d20] border border-[#a1e3f9]/30 text-center space-y-3 shadow-2xl animate-pulse">
-          <Loader2 className="w-8 h-8 text-[#a1e3f9] animate-spin mx-auto" />
-          <h3 className="font-display text-base font-bold text-white">
+        <div className={`p-8 rounded-3xl border text-center space-y-3 shadow-2xl animate-pulse ${
+          isDark
+            ? 'bg-gradient-to-r from-[#151d20] via-[#1c2529] to-[#151d20] border-[#a1e3f9]/30'
+            : 'bg-gradient-to-r from-[#EBF3EB] via-[#FFFFFF] to-[#EBF3EB] border-[#6FAF8F]/40'
+        }`}>
+          <Loader2 className={`w-8 h-8 animate-spin mx-auto ${isDark ? 'text-[#a1e3f9]' : 'text-[#557A62]'}`} />
+          <h3 className={`font-display text-base font-bold ${isDark ? 'text-white' : 'text-[#24332D]'}`}>
             Gemini AI is analyzing your ingredients...
           </h3>
-          <p className="text-xs text-[#8e989b] max-w-md mx-auto">
+          <p className={`text-xs max-w-md mx-auto ${isDark ? 'text-[#8e989b]' : 'text-[#68736D]'}`}>
             Crafting tailored recipes with exact quantities, step-by-step instructions, and flexible ingredient substitutions.
           </p>
         </div>
@@ -425,26 +519,38 @@ export const RecipeHubView: React.FC = () => {
       {/* 2. DYNAMICALLY GENERATED AI RECIPES SECTION */}
       {aiGeneratedRecipes.length > 0 && !isGenerating && (
         <div className="space-y-4">
-          <div className="flex items-center justify-between border-b border-[#a1e3f9]/30 pb-2">
+          <div className={`flex items-center justify-between border-b pb-2 ${
+            isDark ? 'border-[#a1e3f9]/30' : 'border-[#6FAF8F]/30'
+          }`}>
             <div className="flex items-center gap-2.5">
-              <span className="p-1.5 rounded-lg bg-[#a1e3f9]/20 text-[#a1e3f9]">
+              <span className={`p-1.5 rounded-lg ${
+                isDark ? 'bg-[#a1e3f9]/20 text-[#a1e3f9]' : 'bg-[#6FAF8F]/20 text-[#557A62]'
+              }`}>
                 <Wand2 className="w-4 h-4" />
               </span>
               <div>
-                <h2 className="font-display text-lg font-black text-white tracking-wide flex items-center gap-2">
+                <h2 className={`font-display text-lg font-black tracking-wide flex items-center gap-2 ${
+                  isDark ? 'text-white' : 'text-[#24332D]'
+                }`}>
                   <span>AI DYNAMICALLY GENERATED RECIPES</span>
-                  <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-400/30">
+                  <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full border ${
+                    isDark
+                      ? 'bg-cyan-500/20 text-cyan-300 border-cyan-400/30'
+                      : 'bg-[#6FAF8F]/15 text-[#557A62] border-[#6FAF8F]/30'
+                  }`}>
                     {generationSource || 'Gemini AI'}
                   </span>
                 </h2>
-                <p className="text-[11px] text-[#8e989b]">
+                <p className={`text-[11px] ${isDark ? 'text-[#8e989b]' : 'text-[#68736D]'}`}>
                   Created dynamically based on what you currently have
                 </p>
               </div>
             </div>
             <button
               onClick={() => handleGenerateWithAI()}
-              className="text-xs text-[#a1e3f9] hover:underline font-mono flex items-center gap-1 cursor-pointer"
+              className={`text-xs hover:underline font-mono flex items-center gap-1 cursor-pointer ${
+                isDark ? 'text-[#a1e3f9]' : 'text-[#557A62]'
+              }`}
             >
               <RefreshCw className="w-3 h-3" />
               <span>Regenerate</span>
@@ -455,7 +561,11 @@ export const RecipeHubView: React.FC = () => {
             {aiGeneratedRecipes.map((recipe) => (
               <div
                 key={recipe.id}
-                className="rounded-3xl bg-[#1c2529] border border-[#a1e3f9]/40 hover:border-[#a1e3f9] transition-all overflow-hidden flex flex-col justify-between shadow-xl group"
+                className={`rounded-3xl border transition-all overflow-hidden flex flex-col justify-between shadow-xl group ${
+                  isDark
+                    ? 'bg-[#1c2529] border-[#a1e3f9]/40 hover:border-[#a1e3f9]'
+                    : 'bg-[#FFFFFF] border-[#6FAF8F]/40 hover:border-[#6FAF8F]'
+                }`}
               >
                 <div>
                   <div
@@ -467,19 +577,25 @@ export const RecipeHubView: React.FC = () => {
                       alt={recipe.title}
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                     />
-                    <div className="absolute inset-0 bg-gradient-to-t from-[#1c2529] via-black/40 to-transparent" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
 
                     <div className="absolute top-3 left-3 flex flex-wrap gap-1.5">
                       <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-black/60 text-white backdrop-blur-md">
                         {recipe.estimatedCookingTime || recipe.prepTime}
                       </span>
-                      <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-[#a1e3f9] text-[#003642] backdrop-blur-md">
+                      <span className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded backdrop-blur-md ${
+                        isDark ? 'bg-[#a1e3f9] text-[#003642]' : 'bg-[#557A62] text-white'
+                      }`}>
                         {recipe.cuisine}
                       </span>
                     </div>
 
                     <div className="absolute top-3 right-3">
-                      <span className="text-xs font-mono font-bold px-2.5 py-1 rounded-full bg-emerald-500/25 border border-emerald-400 text-emerald-300 backdrop-blur-md">
+                      <span className={`text-xs font-mono font-bold px-2.5 py-1 rounded-full border backdrop-blur-md ${
+                        isDark
+                          ? 'bg-emerald-500/25 border-emerald-400 text-emerald-300'
+                          : 'bg-[#557A62]/90 border-[#6FAF8F] text-white'
+                      }`}>
                         {recipe.matchPercentage || 100}% Match
                       </span>
                     </div>
@@ -489,19 +605,27 @@ export const RecipeHubView: React.FC = () => {
                     <div>
                       <h3
                         onClick={() => handleOpenRecipe(recipe)}
-                        className="font-display text-base font-bold text-white group-hover:text-[#a1e3f9] transition-colors cursor-pointer"
+                        className={`font-display text-base font-bold transition-colors cursor-pointer ${
+                          isDark
+                            ? 'text-white group-hover:text-[#a1e3f9]'
+                            : 'text-[#24332D] group-hover:text-[#557A62]'
+                        }`}
                       >
                         {recipe.title}
                       </h3>
-                      <p className="text-xs text-[#bfc8cc] line-clamp-2 mt-1">{recipe.description}</p>
+                      <p className={`text-xs line-clamp-2 mt-1 ${isDark ? 'text-[#bfc8cc]' : 'text-[#68736D]'}`}>
+                        {recipe.description}
+                      </p>
                     </div>
 
                     {/* Ingredients with Quantities & Separated Available vs Missing */}
-                    <div className="space-y-2 pt-2 border-t border-white/5">
+                    <div className={`space-y-2 pt-2 border-t ${isDark ? 'border-white/5' : 'border-[#E4DED2]'}`}>
                       {/* You Have / AVAILABLE */}
                       {recipe.ingredientsWithQuantities && recipe.ingredientsWithQuantities.some((i) => i.isAvailable !== false) ? (
                         <div className="space-y-1">
-                          <p className="text-[10px] font-mono text-emerald-400 uppercase tracking-wider font-bold flex items-center gap-1">
+                          <p className={`text-[10px] font-mono uppercase tracking-wider font-bold flex items-center gap-1 ${
+                            isDark ? 'text-emerald-400' : 'text-[#557A62]'
+                          }`}>
                             <Check className="w-3 h-3" />
                             <span>You Have (Available):</span>
                           </p>
@@ -511,7 +635,11 @@ export const RecipeHubView: React.FC = () => {
                               .map((ing, i) => (
                                 <span
                                   key={i}
-                                  className="text-[11px] px-2 py-0.5 rounded-lg bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 font-medium"
+                                  className={`text-[11px] px-2 py-0.5 rounded-lg border font-medium ${
+                                    isDark
+                                      ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30'
+                                      : 'bg-[#6FAF8F]/15 text-[#43634F] border-[#6FAF8F]/30'
+                                  }`}
                                 >
                                   ✓ {ing.name} <span className="opacity-75">({ing.quantity})</span>
                                 </span>
@@ -520,14 +648,20 @@ export const RecipeHubView: React.FC = () => {
                         </div>
                       ) : (
                         <div className="space-y-1">
-                          <p className="text-[10px] font-mono text-emerald-400 uppercase tracking-wider font-bold">
+                          <p className={`text-[10px] font-mono uppercase tracking-wider font-bold ${
+                            isDark ? 'text-emerald-400' : 'text-[#557A62]'
+                          }`}>
                             You Have:
                           </p>
                           <div className="flex flex-wrap gap-1.5">
                             {recipe.pantryItems.map((item, i) => (
                               <span
                                 key={i}
-                                className="text-[11px] px-2 py-0.5 rounded-lg bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 font-medium"
+                                className={`text-[11px] px-2 py-0.5 rounded-lg border font-medium ${
+                                  isDark
+                                    ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30'
+                                    : 'bg-[#6FAF8F]/15 text-[#43634F] border-[#6FAF8F]/30'
+                                }`}
                               >
                                 ✓ {item}
                               </span>
@@ -539,7 +673,9 @@ export const RecipeHubView: React.FC = () => {
                       {/* You'll Also Need / MISSING */}
                       {recipe.ingredientsWithQuantities && recipe.ingredientsWithQuantities.some((i) => i.isAvailable === false) && (
                         <div className="space-y-1">
-                          <p className="text-[10px] font-mono text-[#ffb780] uppercase tracking-wider font-bold flex items-center gap-1">
+                          <p className={`text-[10px] font-mono uppercase tracking-wider font-bold flex items-center gap-1 ${
+                            isDark ? 'text-[#ffb780]' : 'text-[#D9826B]'
+                          }`}>
                             <Plus className="w-3 h-3" />
                             <span>You'll Also Need (Missing):</span>
                           </p>
@@ -549,7 +685,11 @@ export const RecipeHubView: React.FC = () => {
                               .map((ing, i) => (
                                 <span
                                   key={i}
-                                  className="text-[11px] px-2 py-0.5 rounded-lg bg-[#ffb780]/15 text-[#ffb780] border border-[#ffb780]/30 font-medium"
+                                  className={`text-[11px] px-2 py-0.5 rounded-lg border font-medium ${
+                                    isDark
+                                      ? 'bg-[#ffb780]/15 text-[#ffb780] border-[#ffb780]/30'
+                                      : 'bg-[#F2B49F]/25 text-[#B8573E] border-[#F2B49F]/40'
+                                  }`}
                                 >
                                   + {ing.name} <span className="opacity-75">({ing.quantity})</span>
                                 </span>
@@ -561,21 +701,29 @@ export const RecipeHubView: React.FC = () => {
 
                     {/* Substitutions preview */}
                     {recipe.substitutions && recipe.substitutions.length > 0 && (
-                      <div className="p-2.5 rounded-xl bg-[#151d20] border border-white/5 text-[11px] space-y-1">
-                        <span className="text-[#a1e3f9] font-bold">Flexible Swap: </span>
-                        <span className="text-[#8e989b] line-through">{recipe.substitutions[0].original}</span>
-                        <span className="text-white"> → </span>
-                        <span className="text-emerald-300 font-semibold">{recipe.substitutions[0].substitute}</span>
+                      <div className={`p-2.5 rounded-xl border text-[11px] space-y-1 ${
+                        isDark ? 'bg-[#151d20] border-white/5' : 'bg-[#F7F5EF] border-[#E4DED2]'
+                      }`}>
+                        <span className={`font-bold ${isDark ? 'text-[#a1e3f9]' : 'text-[#557A62]'}`}>Flexible Swap: </span>
+                        <span className={`line-through ${isDark ? 'text-[#8e989b]' : 'text-[#8A9590]'}`}>{recipe.substitutions[0].original}</span>
+                        <span> → </span>
+                        <span className={`font-semibold ${isDark ? 'text-emerald-300' : 'text-[#43634F]'}`}>{recipe.substitutions[0].substitute}</span>
                       </div>
                     )}
                   </div>
                 </div>
 
-                <div className="p-4 pt-2 border-t border-white/5 flex items-center justify-between gap-2">
+                <div className={`p-4 pt-2 border-t flex items-center justify-between gap-2 ${
+                  isDark ? 'border-white/5' : 'border-[#E4DED2]'
+                }`}>
                   <button
                     type="button"
                     onClick={() => handleOpenRecipe(recipe)}
-                    className="w-full py-2.5 px-4 rounded-xl bg-[#a1e3f9] hover:bg-[#c2effc] text-[#003642] text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-md"
+                    className={`w-full py-2.5 px-4 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-md ${
+                      isDark
+                        ? 'bg-[#a1e3f9] hover:bg-[#c2effc] text-[#003642]'
+                        : 'bg-[#557A62] hover:bg-[#43634F] text-white'
+                    }`}
                   >
                     <BookOpen className="w-3.5 h-3.5" />
                     <span>View Recipe & Steps</span>
@@ -585,7 +733,11 @@ export const RecipeHubView: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => handleAddMissingToShopping(recipe)}
-                      className="p-2.5 rounded-xl bg-[#ffb780] hover:bg-[#ffd7b2] text-[#4a2800] text-xs font-bold transition-all cursor-pointer shrink-0"
+                      className={`p-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer shrink-0 ${
+                        isDark
+                          ? 'bg-[#ffb780] hover:bg-[#ffd7b2] text-[#4a2800]'
+                          : 'bg-[#D5A84C] hover:bg-[#C2963A] text-white'
+                      }`}
                       title="Add missing ingredients to shopping list"
                     >
                       <ShoppingCart className="w-4 h-4" />
@@ -600,15 +752,21 @@ export const RecipeHubView: React.FC = () => {
 
       {/* 3. SECTION: 🍳 I CAN MAKE NOW (100% Ready From Catalog) */}
       <div className="space-y-4">
-        <div className="flex items-center justify-between border-b border-white/10 pb-2">
+        <div className={`flex items-center justify-between border-b pb-2 ${
+          isDark ? 'border-white/10' : 'border-[#E4DED2]'
+        }`}>
           <div className="flex items-center gap-2.5">
             <span className="text-lg">🍳</span>
-            <h2 className="font-display text-lg font-black text-white tracking-wide">I CAN MAKE NOW</h2>
-            <span className="text-xs px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-mono font-bold">
+            <h2 className={`font-display text-lg font-black tracking-wide ${isDark ? 'text-white' : 'text-[#24332D]'}`}>
+              I CAN MAKE NOW
+            </h2>
+            <span className={`text-xs px-2.5 py-0.5 rounded-full font-mono font-bold ${
+              isDark ? 'bg-emerald-500/20 text-emerald-300' : 'bg-[#6FAF8F]/20 text-[#43634F]'
+            }`}>
               {canMakeNowList.length} Ready
             </span>
           </div>
-          <span className="text-xs text-[#8e989b] hidden sm:inline">
+          <span className={`text-xs hidden sm:inline ${isDark ? 'text-[#8e989b]' : 'text-[#68736D]'}`}>
             You have all required ingredients in your kitchen
           </span>
         </div>
@@ -618,11 +776,17 @@ export const RecipeHubView: React.FC = () => {
             {canMakeNowList.map((res) => renderRecipeCard(res, true))}
           </div>
         ) : (
-          <div className="p-6 rounded-2xl bg-[#1c2529] border border-white/5 text-center text-[#8e989b] text-xs space-y-2">
+          <div className={`p-6 rounded-2xl border text-center text-xs space-y-2 ${
+            isDark ? 'bg-[#1c2529] border-white/5 text-[#8e989b]' : 'bg-[#FFFFFF] border-[#E4DED2] text-[#68736D]'
+          }`}>
             <p>No exact 100% recipes found in stored catalog for this selection.</p>
             <button
               onClick={() => handleGenerateWithAI()}
-              className="px-4 py-2 rounded-xl bg-[#a1e3f9]/20 text-[#a1e3f9] hover:bg-[#a1e3f9]/30 text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer"
+              className={`px-4 py-2 rounded-xl text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer ${
+                isDark
+                  ? 'bg-[#a1e3f9]/20 text-[#a1e3f9] hover:bg-[#a1e3f9]/30'
+                  : 'bg-[#557A62]/15 text-[#557A62] hover:bg-[#557A62]/25'
+              }`}
             >
               <Wand2 className="w-3.5 h-3.5" />
               <span>Generate Custom AI Recipes For These Ingredients</span>
@@ -633,15 +797,21 @@ export const RecipeHubView: React.FC = () => {
 
       {/* 4. SECTION: 💡 ALMOST READY (Missing 1 or 2 ingredients) */}
       <div className="space-y-4 pt-4">
-        <div className="flex items-center justify-between border-b border-white/10 pb-2">
+        <div className={`flex items-center justify-between border-b pb-2 ${
+          isDark ? 'border-white/10' : 'border-[#E4DED2]'
+        }`}>
           <div className="flex items-center gap-2.5">
             <span className="text-lg">💡</span>
-            <h2 className="font-display text-lg font-black text-white tracking-wide">ALMOST READY</h2>
-            <span className="text-xs px-2.5 py-0.5 rounded-full bg-[#ffb780]/20 text-[#ffb780] font-mono font-bold">
+            <h2 className={`font-display text-lg font-black tracking-wide ${isDark ? 'text-white' : 'text-[#24332D]'}`}>
+              ALMOST READY
+            </h2>
+            <span className={`text-xs px-2.5 py-0.5 rounded-full font-mono font-bold ${
+              isDark ? 'bg-[#ffb780]/20 text-[#ffb780]' : 'bg-[#F2B49F]/30 text-[#B8573E]'
+            }`}>
               {almostReadyList.length} Recipes
             </span>
           </div>
-          <span className="text-xs text-[#8e989b] hidden sm:inline">
+          <span className={`text-xs hidden sm:inline ${isDark ? 'text-[#8e989b]' : 'text-[#68736D]'}`}>
             Missing only 1 or 2 ingredients
           </span>
         </div>
@@ -651,7 +821,9 @@ export const RecipeHubView: React.FC = () => {
             {almostReadyList.map((res) => renderRecipeCard(res, false))}
           </div>
         ) : (
-          <div className="p-6 rounded-2xl bg-[#1c2529] border border-white/5 text-center text-[#8e989b] text-xs">
+          <div className={`p-6 rounded-2xl border text-center text-xs ${
+            isDark ? 'bg-[#1c2529] border-white/5 text-[#8e989b]' : 'bg-[#FFFFFF] border-[#E4DED2] text-[#68736D]'
+          }`}>
             No almost-ready recipes found for your current ingredients.
           </div>
         )}

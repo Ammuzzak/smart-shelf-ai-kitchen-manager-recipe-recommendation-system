@@ -4,7 +4,8 @@ import { useKitchen } from '../context/KitchenContext';
 import { FoodCategory } from '../types';
 
 export const AddInventoryModal: React.FC = () => {
-  const { isAddModalOpen, setIsAddModalOpen, addItem, setToastMessage } = useKitchen();
+  const { isAddModalOpen, setIsAddModalOpen, addItem, setToastMessage, theme } = useKitchen();
+  const isDark = theme === 'dark';
 
   const [name, setName] = useState('Spinach');
   const [category, setCategory] = useState<FoodCategory>('Produce');
@@ -72,16 +73,26 @@ export const AddInventoryModal: React.FC = () => {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-fade-in">
-      <div className="w-full max-w-md bg-[#1c2529] border border-white/10 rounded-2xl shadow-2xl p-6 relative space-y-5">
+      <div className={`w-full max-w-md border rounded-2xl shadow-2xl p-6 relative space-y-5 transition-all ${
+        isDark ? 'bg-[#1c2529] border-white/10 text-[#dbe4e8]' : 'bg-[#FFFFFF] border-[#E4DED2] text-[#24332D]'
+      }`}>
         {/* Header */}
-        <div className="flex items-center justify-between pb-3 border-b border-white/10">
+        <div className={`flex items-center justify-between pb-3 border-b ${
+          isDark ? 'border-white/10' : 'border-[#E4DED2]'
+        }`}>
           <div>
-            <h2 className="font-display text-lg font-bold text-white">Add Food Item</h2>
-            <p className="text-xs text-[#8e989b]">Add fresh items or scan a receipt</p>
+            <h2 className={`font-display text-lg font-bold ${isDark ? 'text-white' : 'text-[#24332D]'}`}>
+              Add Food Item
+            </h2>
+            <p className={`text-xs ${isDark ? 'text-[#8e989b]' : 'text-[#68736D]'}`}>
+              Add fresh items or scan a receipt
+            </p>
           </div>
           <button
             onClick={() => setIsAddModalOpen(false)}
-            className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 text-[#bfc8cc] hover:text-white flex items-center justify-center transition-all cursor-pointer"
+            className={`w-8 h-8 rounded-full flex items-center justify-center transition-all cursor-pointer ${
+              isDark ? 'bg-white/5 hover:bg-white/10 text-[#bfc8cc] hover:text-white' : 'bg-[#F7F5EF] hover:bg-[#EFE9DE] text-[#68736D] hover:text-[#24332D]'
+            }`}
           >
             <X className="w-4 h-4" />
           </button>
@@ -89,7 +100,9 @@ export const AddInventoryModal: React.FC = () => {
 
         {/* Quick Item Chips */}
         <div>
-          <label className="block text-xs font-semibold text-[#8e989b] uppercase tracking-wider mb-2">
+          <label className={`block text-xs font-semibold uppercase tracking-wider mb-2 ${
+            isDark ? 'text-[#8e989b]' : 'text-[#68736D]'
+          }`}>
             Quick Select Common Foods
           </label>
           <div className="flex flex-wrap gap-1.5">
@@ -100,8 +113,12 @@ export const AddInventoryModal: React.FC = () => {
                 onClick={() => handleSelectChip(chip)}
                 className={`px-3 py-1 rounded-full text-xs font-medium transition-all cursor-pointer ${
                   name === chip
-                    ? 'bg-[#a1e3f9] text-[#003642] font-semibold'
-                    : 'bg-[#151d20] text-[#bfc8cc] hover:text-white border border-white/5'
+                    ? isDark
+                      ? 'bg-[#a1e3f9] text-[#003642] font-semibold'
+                      : 'bg-[#557A62] text-white font-semibold'
+                    : isDark
+                    ? 'bg-[#151d20] text-[#bfc8cc] hover:text-white border border-white/5'
+                    : 'bg-[#F7F5EF] text-[#68736D] hover:text-[#24332D] border border-[#E4DED2]'
                 }`}
               >
                 {chip}
@@ -112,24 +129,36 @@ export const AddInventoryModal: React.FC = () => {
 
         {/* Item Name Input */}
         <div>
-          <label className="block text-xs font-semibold text-[#8e989b] mb-1.5">Food Name</label>
+          <label className={`block text-xs font-semibold mb-1.5 ${isDark ? 'text-[#8e989b]' : 'text-[#68736D]'}`}>
+            Food Name
+          </label>
           <input
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="e.g. Fresh Tomatoes"
-            className="w-full px-3.5 py-2.5 rounded-xl bg-[#151d20] border border-white/10 text-white text-xs placeholder-[#5a6568] focus:border-[#a1e3f9] outline-none"
+            className={`w-full px-3.5 py-2.5 rounded-xl border text-xs outline-none transition-all ${
+              isDark
+                ? 'bg-[#151d20] border-white/10 text-white placeholder-[#5a6568] focus:border-[#a1e3f9]'
+                : 'bg-[#FFFFFF] border-[#E4DED2] text-[#24332D] placeholder-[#8A9590] focus:border-[#6FAF8F]'
+            }`}
           />
         </div>
 
         {/* Category & Location */}
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="block text-xs font-semibold text-[#8e989b] mb-1.5">Category</label>
+            <label className={`block text-xs font-semibold mb-1.5 ${isDark ? 'text-[#8e989b]' : 'text-[#68736D]'}`}>
+              Category
+            </label>
             <select
               value={category}
               onChange={(e) => setCategory(e.target.value as FoodCategory)}
-              className="w-full px-3 py-2 rounded-xl bg-[#151d20] border border-white/10 text-white text-xs focus:border-[#a1e3f9] outline-none cursor-pointer"
+              className={`w-full px-3 py-2 rounded-xl border text-xs outline-none cursor-pointer ${
+                isDark
+                  ? 'bg-[#151d20] border-white/10 text-white focus:border-[#a1e3f9]'
+                  : 'bg-[#FFFFFF] border-[#E4DED2] text-[#24332D] focus:border-[#6FAF8F]'
+              }`}
             >
               <option value="Produce">Produce</option>
               <option value="Dairy">Dairy</option>
@@ -142,11 +171,17 @@ export const AddInventoryModal: React.FC = () => {
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-[#8e989b] mb-1.5">Storage Location</label>
+            <label className={`block text-xs font-semibold mb-1.5 ${isDark ? 'text-[#8e989b]' : 'text-[#68736D]'}`}>
+              Storage Location
+            </label>
             <select
               value={location}
               onChange={(e) => setLocation(e.target.value)}
-              className="w-full px-3 py-2 rounded-xl bg-[#151d20] border border-white/10 text-white text-xs focus:border-[#a1e3f9] outline-none cursor-pointer"
+              className={`w-full px-3 py-2 rounded-xl border text-xs outline-none cursor-pointer ${
+                isDark
+                  ? 'bg-[#151d20] border-white/10 text-white focus:border-[#a1e3f9]'
+                  : 'bg-[#FFFFFF] border-[#E4DED2] text-[#24332D] focus:border-[#6FAF8F]'
+              }`}
             >
               <option value="Vegetable Drawer">Vegetable Drawer</option>
               <option value="Fridge Shelf">Fridge Shelf</option>
@@ -162,20 +197,32 @@ export const AddInventoryModal: React.FC = () => {
         {/* Quantity Counter & Unit Picker */}
         <div className="grid grid-cols-2 gap-3 items-center">
           <div>
-            <label className="block text-xs font-semibold text-[#8e989b] mb-1.5">Quantity</label>
-            <div className="flex items-center justify-between p-1 rounded-xl bg-[#151d20] border border-white/10">
+            <label className={`block text-xs font-semibold mb-1.5 ${isDark ? 'text-[#8e989b]' : 'text-[#68736D]'}`}>
+              Quantity
+            </label>
+            <div className={`flex items-center justify-between p-1 rounded-xl border ${
+              isDark ? 'bg-[#151d20] border-white/10' : 'bg-[#F7F5EF] border-[#E4DED2]'
+            }`}>
               <button
                 type="button"
                 onClick={() => setQuantity((q) => Math.max(0.5, +(q - 0.5).toFixed(1)))}
-                className="w-8 h-8 rounded-lg bg-[#252f33] hover:bg-[#323d42] text-white flex items-center justify-center text-xs font-bold cursor-pointer"
+                className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold cursor-pointer transition-all ${
+                  isDark ? 'bg-[#252f33] hover:bg-[#323d42] text-white' : 'bg-[#FFFFFF] hover:bg-[#EFE9DE] text-[#24332D] shadow-sm'
+                }`}
               >
                 <Minus className="w-3.5 h-3.5" />
               </button>
-              <span className="font-mono text-sm font-bold text-white">{quantity}</span>
+              <span className={`font-mono text-sm font-bold ${isDark ? 'text-white' : 'text-[#24332D]'}`}>
+                {quantity}
+              </span>
               <button
                 type="button"
                 onClick={() => setQuantity((q) => +(q + 0.5).toFixed(1))}
-                className="w-8 h-8 rounded-lg bg-[#252f33] hover:bg-[#323d42] text-[#a1e3f9] flex items-center justify-center text-xs font-bold cursor-pointer"
+                className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold cursor-pointer transition-all ${
+                  isDark
+                    ? 'bg-[#252f33] hover:bg-[#323d42] text-[#a1e3f9]'
+                    : 'bg-[#557A62] hover:bg-[#43634F] text-white shadow-sm'
+                }`}
               >
                 <Plus className="w-3.5 h-3.5" />
               </button>
@@ -183,11 +230,17 @@ export const AddInventoryModal: React.FC = () => {
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-[#8e989b] mb-1.5">Unit</label>
+            <label className={`block text-xs font-semibold mb-1.5 ${isDark ? 'text-[#8e989b]' : 'text-[#68736D]'}`}>
+              Unit
+            </label>
             <select
               value={unit}
               onChange={(e) => setUnit(e.target.value)}
-              className="w-full px-3 py-2.5 rounded-xl bg-[#151d20] border border-white/10 text-white text-xs focus:border-[#a1e3f9] outline-none cursor-pointer"
+              className={`w-full px-3 py-2.5 rounded-xl border text-xs outline-none cursor-pointer ${
+                isDark
+                  ? 'bg-[#151d20] border-white/10 text-white focus:border-[#a1e3f9]'
+                  : 'bg-[#FFFFFF] border-[#E4DED2] text-[#24332D] focus:border-[#6FAF8F]'
+              }`}
             >
               <option value="Bunch">Bunch</option>
               <option value="g">Grams (g)</option>
@@ -203,8 +256,12 @@ export const AddInventoryModal: React.FC = () => {
         {/* Estimated Expiry Days */}
         <div>
           <div className="flex items-center justify-between mb-1.5">
-            <label className="text-xs font-semibold text-[#8e989b]">Expires in</label>
-            <span className="text-xs font-mono font-bold text-[#ffb780]">{expiryDays} days</span>
+            <label className={`text-xs font-semibold ${isDark ? 'text-[#8e989b]' : 'text-[#68736D]'}`}>
+              Expires in
+            </label>
+            <span className={`text-xs font-mono font-bold ${isDark ? 'text-[#ffb780]' : 'text-[#D9826B]'}`}>
+              {expiryDays} days
+            </span>
           </div>
           <input
             type="range"
@@ -212,30 +269,38 @@ export const AddInventoryModal: React.FC = () => {
             max="30"
             value={expiryDays}
             onChange={(e) => setExpiryDays(parseInt(e.target.value, 10))}
-            className="w-full accent-[#a1e3f9] bg-[#151d20] cursor-pointer"
+            className={`w-full cursor-pointer ${
+              isDark ? 'accent-[#a1e3f9] bg-[#151d20]' : 'accent-[#557A62] bg-[#EFE9DE]'
+            }`}
           />
         </div>
 
         {/* Helpful Tip */}
-        <div className="p-3.5 rounded-xl bg-[#151d20] border border-[#a1e3f9]/20 flex items-start gap-3">
-          <Sparkles className="w-4 h-4 text-[#a1e3f9] shrink-0 mt-0.5" />
+        <div className={`p-3.5 rounded-xl border flex items-start gap-3 ${
+          isDark ? 'bg-[#151d20] border-[#a1e3f9]/20' : 'bg-[#EBF3EB] border-[#6FAF8F]/30'
+        }`}>
+          <Sparkles className={`w-4 h-4 shrink-0 mt-0.5 ${isDark ? 'text-[#a1e3f9]' : 'text-[#557A62]'}`} />
           <div className="text-xs">
-            <p className="font-semibold text-white">Smart Recommendation</p>
-            <p className="text-[#8e989b] mt-0.5 leading-relaxed">
+            <p className={`font-semibold ${isDark ? 'text-white' : 'text-[#24332D]'}`}>
+              Smart Recommendation
+            </p>
+            <p className={`mt-0.5 leading-relaxed ${isDark ? 'text-[#8e989b]' : 'text-[#68736D]'}`}>
               Based on your cooking habits, using {name} within {expiryDays} days will keep it fresh and delicious.
             </p>
           </div>
         </div>
 
         {/* Summary */}
-        <p className="text-xs text-center text-[#8e989b]">
-          Adding <strong className="text-white">{quantity} {unit}</strong> of{' '}
-          <strong className="text-[#a1e3f9]">{name}</strong> to{' '}
-          <strong className="text-white">{location}</strong>
+        <p className={`text-xs text-center ${isDark ? 'text-[#8e989b]' : 'text-[#68736D]'}`}>
+          Adding <strong className={isDark ? 'text-white' : 'text-[#24332D]'}>{quantity} {unit}</strong> of{' '}
+          <strong className={isDark ? 'text-[#a1e3f9]' : 'text-[#557A62]'}>{name}</strong> to{' '}
+          <strong className={isDark ? 'text-white' : 'text-[#24332D]'}>{location}</strong>
         </p>
 
         {/* Bottom Actions */}
-        <div className="grid grid-cols-2 gap-2.5 pt-2 border-t border-white/10">
+        <div className={`grid grid-cols-2 gap-2.5 pt-2 border-t ${
+          isDark ? 'border-white/10' : 'border-[#E4DED2]'
+        }`}>
           <button
             type="button"
             onClick={() => {
@@ -247,16 +312,24 @@ export const AddInventoryModal: React.FC = () => {
               setExpiryDays(4);
               setToastMessage('Scanned receipt! Detected 1kg Country Tomatoes.');
             }}
-            className="py-2.5 px-3 rounded-xl bg-[#232b2e] hover:bg-[#2c363a] text-white border border-white/10 font-semibold text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+            className={`py-2.5 px-3 rounded-xl border font-semibold text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+              isDark
+                ? 'bg-[#232b2e] hover:bg-[#2c363a] text-white border-white/10'
+                : 'bg-[#F7F5EF] hover:bg-[#EFE9DE] text-[#24332D] border-[#E4DED2]'
+            }`}
           >
-            <Camera className="w-3.5 h-3.5 text-[#ffb780]" />
+            <Camera className={`w-3.5 h-3.5 ${isDark ? 'text-[#ffb780]' : 'text-[#D9826B]'}`} />
             <span>Scan Receipt</span>
           </button>
 
           <button
             type="button"
             onClick={handleSave}
-            className="py-2.5 px-3 rounded-xl bg-[#a1e3f9] hover:bg-[#c2effc] text-[#003642] font-bold text-xs flex items-center justify-center gap-1.5 transition-all shadow-md shadow-[#a1e3f9]/15 cursor-pointer"
+            className={`py-2.5 px-3 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition-all shadow-md cursor-pointer ${
+              isDark
+                ? 'bg-[#a1e3f9] hover:bg-[#c2effc] text-[#003642] shadow-[#a1e3f9]/15'
+                : 'bg-[#557A62] hover:bg-[#43634F] text-white shadow-[#557A62]/15'
+            }`}
           >
             <Check className="w-4 h-4" />
             <span>Add to My Food</span>

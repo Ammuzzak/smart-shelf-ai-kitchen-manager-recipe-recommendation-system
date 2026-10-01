@@ -39,7 +39,9 @@ export const HeyChefModal: React.FC = () => {
     addChefTimerMins,
     setSelectedRecipeForDetail,
     setIsRecipeDetailOpen,
+    theme,
   } = useKitchen();
+  const isDark = theme === 'dark';
 
   const [inputQuery, setInputQuery] = useState('');
   const [isListening, setIsListening] = useState(false);
@@ -365,49 +367,79 @@ export const HeyChefModal: React.FC = () => {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in">
-      <div className="w-full max-w-lg bg-[#151d20] border border-[#a1e3f9]/40 rounded-3xl shadow-2xl p-6 relative space-y-5 overflow-hidden max-h-[90vh] flex flex-col">
+      <div className={`w-full max-w-lg border rounded-3xl shadow-2xl p-6 relative space-y-5 overflow-hidden max-h-[90vh] flex flex-col transition-all ${
+        isDark
+          ? 'bg-[#151d20] border-[#a1e3f9]/40 text-[#dbe4e8]'
+          : 'bg-[#FFFFFF] border-[#A99BCB]/50 text-[#24332D]'
+      }`}>
         {/* Glow backdrop */}
-        <div className="absolute -top-20 -right-20 w-48 h-48 bg-[#a1e3f9]/15 rounded-full blur-3xl pointer-events-none" />
+        <div className={`absolute -top-20 -right-20 w-48 h-48 rounded-full blur-3xl pointer-events-none ${
+          isDark ? 'bg-[#a1e3f9]/15' : 'bg-[#A99BCB]/15'
+        }`} />
 
         {/* Modal Header */}
-        <div className="flex items-center justify-between pb-3 border-b border-white/10 relative z-10 shrink-0">
+        <div className={`flex items-center justify-between pb-3 border-b relative z-10 shrink-0 ${
+          isDark ? 'border-white/10' : 'border-[#E4DED2]'
+        }`}>
           <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-[#a1e3f9]/20 border border-[#a1e3f9]/40 flex items-center justify-center text-[#a1e3f9]">
+            <div className={`w-9 h-9 rounded-xl border flex items-center justify-center ${
+              isDark
+                ? 'bg-[#a1e3f9]/20 border-[#a1e3f9]/40 text-[#a1e3f9]'
+                : 'bg-[#A99BCB]/20 border-[#A99BCB]/40 text-[#63538C]'
+            }`}>
               <Sparkles className="w-5 h-5" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h3 className="font-display text-sm font-bold text-white">"Chef" AI Assistant</h3>
+                <h3 className={`font-display text-sm font-bold ${isDark ? 'text-white' : 'text-[#24332D]'}`}>
+                  "Chef" AI Assistant
+                </h3>
                 <span
-                  className={`text-[10px] px-2 py-0.2 rounded-full font-mono ${
+                  className={`text-[10px] px-2 py-0.5 rounded-full font-mono ${
                     isListening
                       ? 'bg-rose-500/20 text-rose-300 animate-pulse'
                       : isSpeechSupported
-                      ? 'bg-emerald-500/20 text-emerald-400'
-                      : 'bg-amber-500/20 text-amber-300'
+                      ? isDark
+                        ? 'bg-emerald-500/20 text-emerald-400'
+                        : 'bg-[#6FAF8F]/20 text-[#43634F]'
+                      : 'bg-amber-500/20 text-amber-500'
                   }`}
                 >
                   {isListening ? 'Listening...' : isSpeechSupported ? 'Ready • English / தமிழ்' : 'Voice Unavailable'}
                 </span>
               </div>
-              <p className="text-[11px] text-[#8e989b]">Speaks English, Tamil & Tanglish</p>
+              <p className={`text-[11px] ${isDark ? 'text-[#8e989b]' : 'text-[#68736D]'}`}>
+                Speaks English, Tamil & Tanglish
+              </p>
             </div>
           </div>
 
           <div className="flex items-center gap-2">
             <button
               onClick={() => setIsSpeechAudioOn(!isSpeechAudioOn)}
-              className="p-2 rounded-lg bg-white/5 hover:bg-white/10 text-[#8e989b] hover:text-white transition-all cursor-pointer"
+              className={`p-2 rounded-lg transition-all cursor-pointer ${
+                isDark
+                  ? 'bg-white/5 hover:bg-white/10 text-[#8e989b] hover:text-white'
+                  : 'bg-[#F7F5EF] hover:bg-[#EFE9DE] text-[#68736D] hover:text-[#24332D]'
+              }`}
               title={isSpeechAudioOn ? 'Mute speech output' : 'Enable speech output'}
             >
-              {isSpeechAudioOn ? <Volume2 className="w-4 h-4 text-[#a1e3f9]" /> : <VolumeX className="w-4 h-4" />}
+              {isSpeechAudioOn ? (
+                <Volume2 className={`w-4 h-4 ${isDark ? 'text-[#a1e3f9]' : 'text-[#557A62]'}`} />
+              ) : (
+                <VolumeX className="w-4 h-4" />
+              )}
             </button>
             <button
               onClick={() => {
                 stopListening();
                 setIsHeyChefOpen(false);
               }}
-              className="p-2 rounded-lg bg-white/5 hover:bg-white/10 text-[#8e989b] hover:text-white transition-all cursor-pointer"
+              className={`p-2 rounded-lg transition-all cursor-pointer ${
+                isDark
+                  ? 'bg-white/5 hover:bg-white/10 text-[#8e989b] hover:text-white'
+                  : 'bg-[#F7F5EF] hover:bg-[#EFE9DE] text-[#68736D] hover:text-[#24332D]'
+              }`}
             >
               <X className="w-4 h-4" />
             </button>
@@ -425,9 +457,13 @@ export const HeyChefModal: React.FC = () => {
           )}
 
           {/* 1. Speech Recognition Visualizer & Mic Button */}
-          <div className="p-4 rounded-2xl bg-[#0d1518] border border-white/10 flex flex-col items-center justify-center gap-3 relative overflow-hidden">
+          <div className={`p-4 rounded-2xl border flex flex-col items-center justify-center gap-3 relative overflow-hidden ${
+            isDark ? 'bg-[#0d1518] border-white/10' : 'bg-[#F7F5EF] border-[#E4DED2]'
+          }`}>
             <div className="flex items-center justify-between w-full">
-              <span className="text-[10px] font-mono font-bold tracking-wider text-[#a1e3f9] uppercase flex items-center gap-1.5">
+              <span className={`text-[10px] font-mono font-bold tracking-wider uppercase flex items-center gap-1.5 ${
+                isDark ? 'text-[#a1e3f9]' : 'text-[#557A62]'
+              }`}>
                 {isListening ? (
                   <>
                     <span className="w-2 h-2 rounded-full bg-rose-500 animate-ping" />
@@ -435,7 +471,7 @@ export const HeyChefModal: React.FC = () => {
                   </>
                 ) : (
                   <>
-                    <span className="w-2 h-2 rounded-full bg-emerald-400" />
+                    <span className={`w-2 h-2 rounded-full ${isDark ? 'bg-emerald-400' : 'bg-[#6FAF8F]'}`} />
                     Microphone Ready
                   </>
                 )}
@@ -444,10 +480,12 @@ export const HeyChefModal: React.FC = () => {
               {isSpeechSupported && (
                 <button
                   onClick={isListening ? stopListening : startListening}
-                  className={`px-3 py-1 rounded-full text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+                  className={`px-3 py-1 rounded-full text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer shadow-sm ${
                     isListening
                       ? 'bg-rose-500 text-white animate-pulse'
-                      : 'bg-[#a1e3f9] hover:bg-[#c2effc] text-[#003642]'
+                      : isDark
+                      ? 'bg-[#a1e3f9] hover:bg-[#c2effc] text-[#003642]'
+                      : 'bg-[#557A62] hover:bg-[#43634F] text-white'
                   }`}
                 >
                   {isListening ? <MicOff className="w-3.5 h-3.5" /> : <Mic className="w-3.5 h-3.5" />}
@@ -464,14 +502,16 @@ export const HeyChefModal: React.FC = () => {
                   style={{ height: isListening ? `${height}%` : '20%' }}
                   className={`w-1.5 rounded-full transition-all duration-200 ${
                     isListening
-                      ? 'bg-gradient-to-t from-[#004f5e] to-[#a1e3f9] animate-pulse'
-                      : 'bg-white/20'
+                      ? isDark
+                        ? 'bg-gradient-to-t from-[#004f5e] to-[#a1e3f9] animate-pulse'
+                        : 'bg-gradient-to-t from-[#557A62] to-[#6FAF8F] animate-pulse'
+                      : isDark ? 'bg-white/20' : 'bg-[#E4DED2]'
                   }`}
                 />
               ))}
             </div>
 
-            <p className="text-[11px] text-[#8e989b] italic text-center">
+            <p className={`text-[11px] italic text-center ${isDark ? 'text-[#8e989b]' : 'text-[#68736D]'}`}>
               {isListening
                 ? 'Speak in English, Tamil, or Tanglish...'
                 : 'Click "Tap to Speak" or ask in English/Tamil below'}
@@ -480,11 +520,19 @@ export const HeyChefModal: React.FC = () => {
 
           {/* 2. User Input Display */}
           <div className="flex items-start justify-end gap-2">
-            <div className="p-3 rounded-2xl rounded-tr-none bg-[#1c2529] border border-white/10 text-xs text-white max-w-[85%]">
-              <span className="text-[10px] text-[#8e989b] block mb-0.5 font-mono">You:</span>
+            <div className={`p-3 rounded-2xl rounded-tr-none border text-xs max-w-[85%] ${
+              isDark
+                ? 'bg-[#1c2529] border-white/10 text-white'
+                : 'bg-[#F7F5EF] border-[#E4DED2] text-[#24332D]'
+            }`}>
+              <span className={`text-[10px] block mb-0.5 font-mono ${isDark ? 'text-[#8e989b]' : 'text-[#68736D]'}`}>
+                You:
+              </span>
               <p className="font-semibold">{userSpeech}</p>
             </div>
-            <div className="w-6 h-6 rounded-full bg-white/10 flex items-center justify-center text-[10px] font-bold text-white shrink-0 mt-1">
+            <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 mt-1 ${
+              isDark ? 'bg-white/10 text-white' : 'bg-[#557A62] text-white'
+            }`}>
               You
             </div>
           </div>
@@ -492,26 +540,46 @@ export const HeyChefModal: React.FC = () => {
           {/* 3. Chef Natural Reply */}
           {chefResponse && (
             <div className="flex items-start gap-2">
-              <div className="w-7 h-7 rounded-xl bg-[#a1e3f9]/20 border border-[#a1e3f9]/40 flex items-center justify-center text-[#a1e3f9] shrink-0 mt-1 font-bold text-xs">
+              <div className={`w-7 h-7 rounded-xl border flex items-center justify-center shrink-0 mt-1 font-bold text-xs ${
+                isDark
+                  ? 'bg-[#a1e3f9]/20 border-[#a1e3f9]/40 text-[#a1e3f9]'
+                  : 'bg-[#A99BCB]/20 border-[#A99BCB]/40 text-[#63538C]'
+              }`}>
                 👨‍🍳
               </div>
-              <div className="p-3.5 rounded-2xl rounded-tl-none bg-gradient-to-br from-[#1c2529] to-[#252f33] border border-[#a1e3f9]/30 text-xs text-[#dbe4e8] leading-relaxed max-w-[90%] shadow-md space-y-2">
-                <div className="flex items-center justify-between text-[11px] text-[#a1e3f9] font-bold">
+              <div className={`p-3.5 rounded-2xl rounded-tl-none border text-xs leading-relaxed max-w-[90%] shadow-md space-y-2 ${
+                isDark
+                  ? 'bg-gradient-to-br from-[#1c2529] to-[#252f33] border-[#a1e3f9]/30 text-[#dbe4e8]'
+                  : 'bg-gradient-to-br from-[#FFFDF8] to-[#F7F5EF] border-[#A99BCB]/30 text-[#24332D]'
+              }`}>
+                <div className={`flex items-center justify-between text-[11px] font-bold ${
+                  isDark ? 'text-[#a1e3f9]' : 'text-[#63538C]'
+                }`}>
                   <div className="flex items-center gap-1.5">
                     <Sparkles className="w-3.5 h-3.5" />
                     <span>Chef</span>
                   </div>
-                  <span className="text-[10px] uppercase font-mono px-1.5 py-0.2 rounded bg-white/5 text-[#8e989b]">
+                  <span className={`text-[10px] uppercase font-mono px-1.5 py-0.5 rounded ${
+                    isDark ? 'bg-white/5 text-[#8e989b]' : 'bg-[#E4DED2] text-[#68736D]'
+                  }`}>
                     {chefResponse.language}
                   </span>
                 </div>
 
-                <p className="text-white font-medium">{chefResponse.conversational_reply}</p>
+                <p className={`font-medium ${isDark ? 'text-white' : 'text-[#24332D]'}`}>
+                  {chefResponse.conversational_reply}
+                </p>
 
                 {/* Recognized Ingredients Display */}
                 {chefResponse.recognized_ingredients && chefResponse.recognized_ingredients.length > 0 && (
-                  <div className="p-2.5 rounded-xl bg-[#a1e3f9]/10 border border-[#a1e3f9]/30 space-y-1.5">
-                    <p className="text-[10px] font-mono font-bold text-[#a1e3f9] uppercase tracking-wider flex items-center gap-1">
+                  <div className={`p-2.5 rounded-xl border space-y-1.5 ${
+                    isDark
+                      ? 'bg-[#a1e3f9]/10 border-[#a1e3f9]/30'
+                      : 'bg-[#6FAF8F]/15 border-[#6FAF8F]/30'
+                  }`}>
+                    <p className={`text-[10px] font-mono font-bold uppercase tracking-wider flex items-center gap-1 ${
+                      isDark ? 'text-[#a1e3f9]' : 'text-[#43634F]'
+                    }`}>
                       <Sparkles className="w-3 h-3" />
                       <span>RECOGNIZED INGREDIENTS ({chefResponse.recognized_ingredients.length}):</span>
                     </p>
@@ -519,7 +587,11 @@ export const HeyChefModal: React.FC = () => {
                       {chefResponse.recognized_ingredients.map((std, idx) => (
                         <span
                           key={idx}
-                          className="text-[11px] px-2 py-0.5 rounded-md bg-[#a1e3f9]/25 text-[#a1e3f9] font-bold border border-[#a1e3f9]/40 flex items-center gap-1"
+                          className={`text-[11px] px-2 py-0.5 rounded-md font-bold border flex items-center gap-1 ${
+                            isDark
+                              ? 'bg-[#a1e3f9]/25 text-[#a1e3f9] border-[#a1e3f9]/40'
+                              : 'bg-[#6FAF8F]/25 text-[#43634F] border-[#6FAF8F]/40'
+                          }`}
                         >
                           ✓ {getIngredientDisplayName(std)}
                         </span>
@@ -530,22 +602,30 @@ export const HeyChefModal: React.FC = () => {
 
                 {/* Structured Recipe Suggestions Cards inside Chef */}
                 {chefResponse.recipes && chefResponse.recipes.length > 0 && (
-                  <div className="space-y-2 pt-2 border-t border-white/10">
+                  <div className={`space-y-2 pt-2 border-t ${isDark ? 'border-white/10' : 'border-[#E4DED2]'}`}>
                     {chefResponse.recipes.map((rec, i) => (
                       <div
                         key={i}
-                        className="p-3 rounded-xl bg-[#151d20] border border-white/10 space-y-2"
+                        className={`p-3 rounded-xl border space-y-2 ${
+                          isDark
+                            ? 'bg-[#151d20] border-white/10'
+                            : 'bg-[#FFFFFF] border-[#E4DED2] shadow-sm'
+                        }`}
                       >
                         <div className="flex items-center justify-between">
-                          <h4 className="font-bold text-white text-xs flex items-center gap-1">
+                          <h4 className={`font-bold text-xs flex items-center gap-1 ${isDark ? 'text-white' : 'text-[#24332D]'}`}>
                             <span>🍳</span>
                             <span>{rec.name}</span>
                           </h4>
                           <span
                             className={`text-[10px] font-mono px-2 py-0.5 rounded-full font-bold ${
                               rec.ready_to_cook
-                                ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
-                                : 'bg-[#ffb780]/20 text-[#ffb780]'
+                                ? isDark
+                                  ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
+                                  : 'bg-[#6FAF8F]/25 text-[#43634F] border border-[#6FAF8F]/40'
+                                : isDark
+                                ? 'bg-[#ffb780]/20 text-[#ffb780]'
+                                : 'bg-[#D9826B]/20 text-[#D9826B]'
                             }`}
                           >
                             {rec.ready_to_cook ? '100% Ready' : `${rec.match_percent}% Match`}
@@ -557,7 +637,9 @@ export const HeyChefModal: React.FC = () => {
                           {rec.uses_inventory.map((ing, k) => (
                             <span
                               key={k}
-                              className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-300 font-medium"
+                              className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${
+                                isDark ? 'bg-emerald-500/10 text-emerald-300' : 'bg-[#6FAF8F]/15 text-[#43634F]'
+                              }`}
                             >
                               ✓ {ing}
                             </span>
@@ -565,7 +647,9 @@ export const HeyChefModal: React.FC = () => {
                           {rec.missing_items.map((m, k) => (
                             <span
                               key={k}
-                              className="text-[10px] px-1.5 py-0.5 rounded bg-[#ffb780]/15 text-[#ffb780] font-medium"
+                              className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${
+                                isDark ? 'bg-[#ffb780]/15 text-[#ffb780]' : 'bg-[#D9826B]/15 text-[#D9826B]'
+                              }`}
                             >
                               + You'll also need: {m}
                             </span>
@@ -573,12 +657,16 @@ export const HeyChefModal: React.FC = () => {
                         </div>
 
                         <div className="flex items-center justify-between pt-1">
-                          <span className="text-[10px] text-[#8e989b] font-mono flex items-center gap-1">
+                          <span className={`text-[10px] font-mono flex items-center gap-1 ${isDark ? 'text-[#8e989b]' : 'text-[#68736D]'}`}>
                             <Clock className="w-3 h-3" /> {rec.prep_time_mins} min
                           </span>
                           <button
                             onClick={() => handleStartRecipeCooking(rec)}
-                            className="px-3 py-1 rounded-lg bg-[#a1e3f9] hover:bg-[#c2effc] text-[#003642] font-bold text-xs flex items-center gap-1 cursor-pointer transition-all shadow-sm"
+                            className={`px-3 py-1 rounded-lg font-bold text-xs flex items-center gap-1 cursor-pointer transition-all shadow-sm ${
+                              isDark
+                                ? 'bg-[#a1e3f9] hover:bg-[#c2effc] text-[#003642]'
+                                : 'bg-[#557A62] hover:bg-[#43634F] text-white'
+                            }`}
                           >
                             <ChefHat className="w-3.5 h-3.5" />
                             <span>Start Cooking</span>
@@ -594,7 +682,7 @@ export const HeyChefModal: React.FC = () => {
 
           {/* Suggested Quick Commands */}
           <div className="space-y-1.5 pt-1">
-            <p className="text-[10px] font-bold text-[#8e989b] uppercase tracking-wider">
+            <p className={`text-[10px] font-bold uppercase tracking-wider ${isDark ? 'text-[#8e989b]' : 'text-[#68736D]'}`}>
               Try saying or click:
             </p>
             <div className="grid grid-cols-2 gap-1.5">
@@ -603,12 +691,18 @@ export const HeyChefModal: React.FC = () => {
                   key={i}
                   type="button"
                   onClick={() => handleProcessCommand(p.text)}
-                  className="p-2 rounded-xl bg-[#1c2529] hover:bg-[#252f33] border border-white/5 hover:border-[#a1e3f9]/30 text-left transition-all group cursor-pointer"
+                  className={`p-2 rounded-xl border text-left transition-all group cursor-pointer ${
+                    isDark
+                      ? 'bg-[#1c2529] hover:bg-[#252f33] border-white/5 hover:border-[#a1e3f9]/30'
+                      : 'bg-[#F7F5EF] hover:bg-[#EFE9DE] border-[#E4DED2] hover:border-[#6FAF8F]'
+                  }`}
                 >
-                  <p className="text-xs font-semibold text-white group-hover:text-[#a1e3f9] truncate">
+                  <p className={`text-xs font-semibold truncate ${
+                    isDark ? 'text-white group-hover:text-[#a1e3f9]' : 'text-[#24332D] group-hover:text-[#557A62]'
+                  }`}>
                     {p.text}
                   </p>
-                  <p className="text-[9px] text-[#8e989b] truncate">{p.desc}</p>
+                  <p className={`text-[9px] truncate ${isDark ? 'text-[#8e989b]' : 'text-[#68736D]'}`}>{p.desc}</p>
                 </button>
               ))}
             </div>
@@ -616,16 +710,24 @@ export const HeyChefModal: React.FC = () => {
         </div>
 
         {/* 4. Timer Widget Bar */}
-        <div className="p-3 rounded-2xl bg-[#1c2529] border border-[#ffb780]/30 flex flex-wrap items-center justify-between gap-3 shrink-0">
+        <div className={`p-3 rounded-2xl border flex flex-wrap items-center justify-between gap-3 shrink-0 ${
+          isDark
+            ? 'bg-[#1c2529] border-[#ffb780]/30'
+            : 'bg-[#FFFDF8] border-[#D9826B]/30'
+        }`}>
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-[#ffb780]/15 border border-[#ffb780]/30 flex items-center justify-center text-[#ffb780]">
+            <div className={`w-8 h-8 rounded-xl border flex items-center justify-center ${
+              isDark
+                ? 'bg-[#ffb780]/15 border-[#ffb780]/30 text-[#ffb780]'
+                : 'bg-[#D9826B]/15 border-[#D9826B]/30 text-[#D9826B]'
+            }`}>
               <Clock className="w-4 h-4 animate-pulse" />
             </div>
             <div>
-              <p className="font-mono text-base font-extrabold text-white tracking-wider">
+              <p className={`font-mono text-base font-extrabold tracking-wider ${isDark ? 'text-white' : 'text-[#24332D]'}`}>
                 {formattedTimer}
               </p>
-              <p className="text-[9px] text-[#ffb780] font-bold uppercase tracking-wider">
+              <p className={`text-[9px] font-bold uppercase tracking-wider ${isDark ? 'text-[#ffb780]' : 'text-[#D9826B]'}`}>
                 Cooking Timer
               </p>
             </div>
@@ -634,14 +736,22 @@ export const HeyChefModal: React.FC = () => {
           <div className="flex items-center gap-1.5">
             <button
               onClick={pauseChefTimer}
-              className="p-2 rounded-xl bg-[#252f33] hover:bg-[#323d42] text-white transition-all cursor-pointer"
+              className={`p-2 rounded-xl transition-all cursor-pointer ${
+                isDark
+                  ? 'bg-[#252f33] hover:bg-[#323d42] text-white'
+                  : 'bg-[#F7F5EF] hover:bg-[#EFE9DE] text-[#24332D] border border-[#E4DED2]'
+              }`}
               title="Pause/Resume Timer"
             >
               {isChefTimerRunning ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
             </button>
             <button
               onClick={() => addChefTimerMins(2)}
-              className="px-2 py-1 rounded-xl bg-[#252f33] hover:bg-[#323d42] text-xs font-semibold text-white transition-all cursor-pointer"
+              className={`px-2 py-1 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                isDark
+                  ? 'bg-[#252f33] hover:bg-[#323d42] text-white'
+                  : 'bg-[#F7F5EF] hover:bg-[#EFE9DE] text-[#24332D] border border-[#E4DED2]'
+              }`}
             >
               +2 min
             </button>
@@ -649,17 +759,27 @@ export const HeyChefModal: React.FC = () => {
         </div>
 
         {/* 5. Manual Text Command Input */}
-        <form onSubmit={handleManualSubmit} className="flex items-center gap-2 pt-2 border-t border-white/10 shrink-0">
+        <form onSubmit={handleManualSubmit} className={`flex items-center gap-2 pt-2 border-t shrink-0 ${
+          isDark ? 'border-white/10' : 'border-[#E4DED2]'
+        }`}>
           <input
             type="text"
             placeholder="Ask Chef: 'enna sapadalam ippo', 'what can I cook?', 'muttai boil time'..."
             value={inputQuery}
             onChange={(e) => setInputQuery(e.target.value)}
-            className="flex-1 px-3.5 py-2.5 rounded-xl bg-[#151d20] border border-white/10 text-white text-xs placeholder-[#5a6568] focus:border-[#a1e3f9] outline-none"
+            className={`flex-1 px-3.5 py-2.5 rounded-xl border text-xs outline-none transition-all ${
+              isDark
+                ? 'bg-[#151d20] border-white/10 text-white placeholder-[#5a6568] focus:border-[#a1e3f9]'
+                : 'bg-[#F7F5EF] border-[#E4DED2] text-[#24332D] placeholder-[#8A9590] focus:border-[#6FAF8F]'
+            }`}
           />
           <button
             type="submit"
-            className="px-4 py-2.5 rounded-xl bg-[#a1e3f9] hover:bg-[#c2effc] text-[#003642] font-bold text-xs flex items-center gap-1.5 transition-all cursor-pointer shadow-sm"
+            className={`px-4 py-2.5 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all cursor-pointer shadow-sm ${
+              isDark
+                ? 'bg-[#a1e3f9] hover:bg-[#c2effc] text-[#003642]'
+                : 'bg-[#557A62] hover:bg-[#43634F] text-white'
+            }`}
           >
             <Send className="w-3.5 h-3.5" />
             <span>Send</span>

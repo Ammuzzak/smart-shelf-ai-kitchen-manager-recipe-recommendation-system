@@ -4,7 +4,8 @@ import { useKitchen } from '../context/KitchenContext';
 import { FoodCategory } from '../types';
 
 export const EditInventoryModal: React.FC = () => {
-  const { editingInventoryItem, setEditingInventoryItem, updateItem, deleteItem, setToastMessage } = useKitchen();
+  const { editingInventoryItem, setEditingInventoryItem, updateItem, deleteItem, setToastMessage, theme } = useKitchen();
+  const isDark = theme === 'dark';
 
   const [name, setName] = useState('');
   const [category, setCategory] = useState<FoodCategory>('Produce');
@@ -63,16 +64,28 @@ export const EditInventoryModal: React.FC = () => {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-fade-in">
-      <div className="w-full max-w-md bg-[#1c2529] border border-white/10 rounded-2xl shadow-2xl p-6 relative space-y-5">
+      <div className={`w-full max-w-md border rounded-2xl shadow-2xl p-6 relative space-y-5 transition-all ${
+        isDark ? 'bg-[#1c2529] border-white/10 text-[#dbe4e8]' : 'bg-[#FFFFFF] border-[#E4DED2] text-[#24332D]'
+      }`}>
         {/* Header */}
-        <div className="flex items-center justify-between pb-3 border-b border-white/10">
+        <div className={`flex items-center justify-between pb-3 border-b ${
+          isDark ? 'border-white/10' : 'border-[#E4DED2]'
+        }`}>
           <div>
-            <h2 className="font-display text-lg font-bold text-white">Edit Food Item</h2>
-            <p className="text-xs text-[#8e989b]">Update food amount, storage location, or expiry days</p>
+            <h2 className={`font-display text-lg font-bold ${isDark ? 'text-white' : 'text-[#24332D]'}`}>
+              Edit Food Item
+            </h2>
+            <p className={`text-xs ${isDark ? 'text-[#8e989b]' : 'text-[#68736D]'}`}>
+              Update food amount, storage location, or expiry days
+            </p>
           </div>
           <button
             onClick={() => setEditingInventoryItem(null)}
-            className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 text-[#bfc8cc] hover:text-white flex items-center justify-center transition-all cursor-pointer"
+            className={`w-8 h-8 rounded-full flex items-center justify-center transition-all cursor-pointer ${
+              isDark
+                ? 'bg-white/5 hover:bg-white/10 text-[#bfc8cc] hover:text-white'
+                : 'bg-[#F7F5EF] hover:bg-[#EFE9DE] text-[#68736D] hover:text-[#24332D]'
+            }`}
           >
             <X className="w-4 h-4" />
           </button>
@@ -82,27 +95,39 @@ export const EditInventoryModal: React.FC = () => {
         <div className="space-y-4">
           {/* Item Name */}
           <div>
-            <label className="block text-xs font-semibold text-[#8e989b] uppercase tracking-wider mb-1.5">
+            <label className={`block text-xs font-semibold uppercase tracking-wider mb-1.5 ${
+              isDark ? 'text-[#8e989b]' : 'text-[#68736D]'
+            }`}>
               Food Name
             </label>
             <input
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full px-3.5 py-2.5 rounded-xl bg-[#151d20] border border-white/10 text-white text-xs placeholder-[#5a6568] focus:border-[#a1e3f9] outline-none"
+              className={`w-full px-3.5 py-2.5 rounded-xl border text-xs outline-none transition-all ${
+                isDark
+                  ? 'bg-[#151d20] border-white/10 text-white placeholder-[#5a6568] focus:border-[#a1e3f9]'
+                  : 'bg-[#FFFFFF] border-[#E4DED2] text-[#24332D] placeholder-[#8A9590] focus:border-[#6FAF8F]'
+              }`}
             />
           </div>
 
           {/* Category & Storage Bay */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-semibold text-[#8e989b] uppercase tracking-wider mb-1.5">
+              <label className={`block text-xs font-semibold uppercase tracking-wider mb-1.5 ${
+                isDark ? 'text-[#8e989b]' : 'text-[#68736D]'
+              }`}>
                 Category
               </label>
               <select
                 value={category}
                 onChange={(e) => setCategory(e.target.value as FoodCategory)}
-                className="w-full px-3 py-2.5 rounded-xl bg-[#151d20] border border-white/10 text-white text-xs outline-none cursor-pointer"
+                className={`w-full px-3 py-2.5 rounded-xl border text-xs outline-none cursor-pointer ${
+                  isDark
+                    ? 'bg-[#151d20] border-white/10 text-white'
+                    : 'bg-[#FFFFFF] border-[#E4DED2] text-[#24332D]'
+                }`}
               >
                 <option value="Produce">Produce</option>
                 <option value="Dairy">Dairy</option>
@@ -115,7 +140,9 @@ export const EditInventoryModal: React.FC = () => {
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-[#8e989b] uppercase tracking-wider mb-1.5">
+              <label className={`block text-xs font-semibold uppercase tracking-wider mb-1.5 ${
+                isDark ? 'text-[#8e989b]' : 'text-[#68736D]'
+              }`}>
                 Storage Location
               </label>
               <input
@@ -123,7 +150,11 @@ export const EditInventoryModal: React.FC = () => {
                 value={location}
                 onChange={(e) => setLocation(e.target.value)}
                 placeholder="e.g. Vegetable Drawer"
-                className="w-full px-3 py-2.5 rounded-xl bg-[#151d20] border border-white/10 text-white text-xs outline-none"
+                className={`w-full px-3 py-2.5 rounded-xl border text-xs outline-none ${
+                  isDark
+                    ? 'bg-[#151d20] border-white/10 text-white'
+                    : 'bg-[#FFFFFF] border-[#E4DED2] text-[#24332D]'
+                }`}
               />
             </div>
           </div>
@@ -131,7 +162,9 @@ export const EditInventoryModal: React.FC = () => {
           {/* Quantity & Unit */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-semibold text-[#8e989b] uppercase tracking-wider mb-1.5">
+              <label className={`block text-xs font-semibold uppercase tracking-wider mb-1.5 ${
+                isDark ? 'text-[#8e989b]' : 'text-[#68736D]'
+              }`}>
                 Quantity
               </label>
               <input
@@ -140,18 +173,28 @@ export const EditInventoryModal: React.FC = () => {
                 step="0.1"
                 value={quantity}
                 onChange={(e) => setQuantity(parseFloat(e.target.value) || 0)}
-                className="w-full px-3 py-2.5 rounded-xl bg-[#151d20] border border-white/10 text-white text-xs outline-none"
+                className={`w-full px-3 py-2.5 rounded-xl border text-xs outline-none ${
+                  isDark
+                    ? 'bg-[#151d20] border-white/10 text-white'
+                    : 'bg-[#FFFFFF] border-[#E4DED2] text-[#24332D]'
+                }`}
               />
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-[#8e989b] uppercase tracking-wider mb-1.5">
+              <label className={`block text-xs font-semibold uppercase tracking-wider mb-1.5 ${
+                isDark ? 'text-[#8e989b]' : 'text-[#68736D]'
+              }`}>
                 Unit
               </label>
               <select
                 value={unit}
                 onChange={(e) => setUnit(e.target.value)}
-                className="w-full px-3 py-2.5 rounded-xl bg-[#151d20] border border-white/10 text-white text-xs outline-none cursor-pointer"
+                className={`w-full px-3 py-2.5 rounded-xl border text-xs outline-none cursor-pointer ${
+                  isDark
+                    ? 'bg-[#151d20] border-white/10 text-white'
+                    : 'bg-[#FFFFFF] border-[#E4DED2] text-[#24332D]'
+                }`}
               >
                 <option value="kg">kg</option>
                 <option value="g">g</option>
@@ -167,7 +210,9 @@ export const EditInventoryModal: React.FC = () => {
           {/* Expiry Days & At-Risk status */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-semibold text-[#8e989b] uppercase tracking-wider mb-1.5">
+              <label className={`block text-xs font-semibold uppercase tracking-wider mb-1.5 ${
+                isDark ? 'text-[#8e989b]' : 'text-[#68736D]'
+              }`}>
                 Days Left
               </label>
               <input
@@ -179,30 +224,40 @@ export const EditInventoryModal: React.FC = () => {
                   setDaysLeft(val);
                   if (val <= 2) setAtRisk(true);
                 }}
-                className="w-full px-3 py-2.5 rounded-xl bg-[#151d20] border border-white/10 text-white text-xs outline-none"
+                className={`w-full px-3 py-2.5 rounded-xl border text-xs outline-none ${
+                  isDark
+                    ? 'bg-[#151d20] border-white/10 text-white'
+                    : 'bg-[#FFFFFF] border-[#E4DED2] text-[#24332D]'
+                }`}
               />
             </div>
 
             <div className="flex flex-col justify-end">
               <label
                 onClick={() => setAtRisk(!atRisk)}
-                className="flex items-center gap-2 p-2.5 rounded-xl bg-[#151d20] border border-white/10 cursor-pointer select-none hover:bg-white/5 transition-all"
+                className={`flex items-center gap-2 p-2.5 rounded-xl border cursor-pointer select-none transition-all ${
+                  isDark
+                    ? 'bg-[#151d20] border-white/10 hover:bg-white/5'
+                    : 'bg-[#F7F5EF] border-[#E4DED2] hover:bg-[#EFE9DE]'
+                }`}
               >
                 <div
                   className={`w-4 h-4 rounded flex items-center justify-center text-[10px] font-bold ${
-                    atRisk ? 'bg-rose-500 text-white' : 'border border-white/30 text-transparent'
+                    atRisk ? 'bg-rose-500 text-white' : 'border border-gray-400 text-transparent'
                   }`}
                 >
                   ✓
                 </div>
-                <span className="text-xs text-white">Use Soon</span>
+                <span className={`text-xs ${isDark ? 'text-white' : 'text-[#24332D]'}`}>Use Soon</span>
               </label>
             </div>
           </div>
         </div>
 
         {/* Action Buttons */}
-        <div className="flex items-center justify-between pt-3 border-t border-white/10">
+        <div className={`flex items-center justify-between pt-3 border-t ${
+          isDark ? 'border-white/10' : 'border-[#E4DED2]'
+        }`}>
           <button
             type="button"
             onClick={handleDelete}
@@ -216,14 +271,22 @@ export const EditInventoryModal: React.FC = () => {
             <button
               type="button"
               onClick={() => setEditingInventoryItem(null)}
-              className="px-3.5 py-2 rounded-xl bg-[#151d20] hover:bg-[#232b2e] text-[#bfc8cc] text-xs font-semibold transition-all cursor-pointer"
+              className={`px-3.5 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                isDark
+                  ? 'bg-[#151d20] hover:bg-[#232b2e] text-[#bfc8cc]'
+                  : 'bg-[#F7F5EF] hover:bg-[#EFE9DE] text-[#68736D]'
+              }`}
             >
               Cancel
             </button>
             <button
               type="button"
               onClick={handleSave}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#a1e3f9] hover:bg-[#c2effc] text-[#003642] text-xs font-bold transition-all cursor-pointer"
+              className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-sm ${
+                isDark
+                  ? 'bg-[#a1e3f9] hover:bg-[#c2effc] text-[#003642]'
+                  : 'bg-[#557A62] hover:bg-[#43634F] text-white'
+              }`}
             >
               <Check className="w-3.5 h-3.5" />
               <span>Save Changes</span>

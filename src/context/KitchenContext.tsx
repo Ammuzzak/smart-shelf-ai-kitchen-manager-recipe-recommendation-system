@@ -10,6 +10,7 @@ import {
   FoodCategory,
   NotificationItem,
   CompletedSessionInfo,
+  ThemeMode,
 } from '../types';
 import {
   INITIAL_INVENTORY,
@@ -60,6 +61,9 @@ const INITIAL_NOTIFICATIONS: NotificationItem[] = [
 ];
 
 interface KitchenContextType {
+  theme: ThemeMode;
+  setTheme: (theme: ThemeMode) => void;
+  toggleTheme: () => void;
   activeScreen: ActiveScreen;
   setActiveScreen: (screen: ActiveScreen) => void;
   inventory: InventoryItem[];
@@ -143,6 +147,51 @@ export const deriveRecipeWithInventory = (recipe: Recipe, inv: InventoryItem[]):
 const KitchenContext = createContext<KitchenContextType | undefined>(undefined);
 
 export const KitchenProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [theme, setThemeState] = useState<ThemeMode>(() => {
+    try {
+      const saved = localStorage.getItem('smart-shelf-theme');
+      if (saved === 'light' || saved === 'dark') {
+        return saved;
+      }
+    } catch {
+      // ignore
+    }
+    return 'dark'; // Dark Mode is default
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('smart-shelf-theme', theme);
+    } catch {
+      // ignore
+    }
+    const root = document.documentElement;
+    if (theme === 'dark') {
+      root.classList.add('dark');
+      root.classList.remove('light');
+      document.body.style.backgroundColor = '#0d1518';
+      document.body.style.color = '#dbe4e8';
+    } else {
+      root.classList.remove('dark');
+      root.classList.add('light');
+      document.body.style.backgroundColor = '#F7F5EF';
+      document.body.style.color = '#24332D';
+    }
+  }, [theme]);
+
+  const setTheme = (mode: ThemeMode) => {
+    setThemeState(mode);
+    setUserSettings((prev) => ({
+      ...prev,
+      theme: mode === 'dark' ? 'Dark Mode' : 'Light Mode',
+    }));
+  };
+
+  const toggleTheme = () => {
+    const next = theme === 'dark' ? 'light' : 'dark';
+    setTheme(next);
+  };
+
   const [activeScreen, setActiveScreen] = useState<ActiveScreen>('dashboard');
   const [inventory, setInventory] = useState<InventoryItem[]>(() =>
     loadStorage('smart_shelf_inventory', INITIAL_INVENTORY)
@@ -407,7 +456,15 @@ export const KitchenProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const updateUserSettings = (
     updater: Partial<UserSettings> | ((prev: UserSettings) => UserSettings)
   ) => {
-    setUserSettings((prev) => (typeof updater === 'function' ? updater(prev) : { ...prev, ...updater }));
+    setUserSettings((prev) => {
+      const next = typeof updater === 'function' ? updater(prev) : { ...prev, ...updater };
+      if (next.theme === 'Light Mode' && theme !== 'light') {
+        setThemeState('light');
+      } else if (next.theme === 'Dark Mode' && theme !== 'dark') {
+        setThemeState('dark');
+      }
+      return next;
+    });
   };
 
   const completeCookingSession = (recipe: Recipe) => {
@@ -540,6 +597,9 @@ export const KitchenProvider: React.FC<{ children: React.ReactNode }> = ({ child
   return (
     <KitchenContext.Provider
       value={{
+        theme,
+        setTheme,
+        toggleTheme,
         activeScreen,
         setActiveScreen,
         inventory,

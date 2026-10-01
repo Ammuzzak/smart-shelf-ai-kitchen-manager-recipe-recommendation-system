@@ -21,7 +21,9 @@ export const RecipeDetailModal: React.FC = () => {
     isRecipeDetailOpen,
     addShoppingItem,
     setToastMessage,
+    theme,
   } = useKitchen();
+  const isDark = theme === 'dark';
 
   if (!isRecipeDetailOpen || !selectedRecipeForDetail) return null;
 
@@ -40,7 +42,9 @@ export const RecipeDetailModal: React.FC = () => {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in">
-      <div className="w-full max-w-2xl bg-[#1c2529] border border-white/10 rounded-3xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col relative">
+      <div className={`w-full max-w-2xl border rounded-3xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col relative transition-all ${
+        isDark ? 'bg-[#1c2529] border-white/10 text-[#dbe4e8]' : 'bg-[#FFFFFF] border-[#E4DED2] text-[#24332D]'
+      }`}>
         {/* Hero Header with Media */}
         <div className="relative h-56 w-full shrink-0">
           <img
@@ -48,7 +52,11 @@ export const RecipeDetailModal: React.FC = () => {
             alt={recipe.title}
             className="w-full h-full object-cover"
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-[#1c2529] via-[#1c2529]/60 to-transparent" />
+          <div className={`absolute inset-0 ${
+            isDark
+              ? 'bg-gradient-to-t from-[#1c2529] via-[#1c2529]/60 to-transparent'
+              : 'bg-gradient-to-t from-black/80 via-black/40 to-transparent'
+          }`} />
 
           {/* Close button */}
           <button
@@ -60,24 +68,40 @@ export const RecipeDetailModal: React.FC = () => {
 
           {/* Floating badges */}
           <div className="absolute top-4 left-4 flex flex-wrap gap-2">
-            <span className="px-3 py-1 rounded-full bg-[#a1e3f9] text-[#003642] font-mono font-bold text-xs uppercase tracking-wide">
+            <span className={`px-3 py-1 rounded-full font-mono font-bold text-xs uppercase tracking-wide ${
+              isDark ? 'bg-[#a1e3f9] text-[#003642]' : 'bg-[#557A62] text-white'
+            }`}>
               {recipe.cuisine}
             </span>
             {recipe.isAIGenerated && (
-              <span className="px-3 py-1 rounded-full bg-cyan-500/25 border border-cyan-400 text-cyan-300 font-mono font-bold text-xs flex items-center gap-1">
+              <span className={`px-3 py-1 rounded-full border font-mono font-bold text-xs flex items-center gap-1 ${
+                isDark ? 'bg-cyan-500/25 border-cyan-400 text-cyan-300' : 'bg-[#6FAF8F]/25 border-[#6FAF8F] text-white'
+              }`}>
                 <Sparkles className="w-3 h-3" />
                 <span>AI Generated</span>
               </span>
             )}
             {recipe.matchPercentage !== undefined && (
-              <span className="px-3 py-1 rounded-full bg-emerald-500/25 border border-emerald-400 text-emerald-300 font-mono font-bold text-xs">
+              <span className={`px-3 py-1 rounded-full border font-mono font-bold text-xs ${
+                isDark
+                  ? 'bg-emerald-500/25 border-emerald-400 text-emerald-300'
+                  : 'bg-[#557A62]/90 border-[#6FAF8F] text-white'
+              }`}>
                 {recipe.matchPercentage}% Match
               </span>
             )}
-            <span className="px-3 py-1 rounded-full bg-emerald-500/20 border border-emerald-400/40 text-emerald-300 font-mono font-bold text-xs">
+            <span className={`px-3 py-1 rounded-full border font-mono font-bold text-xs ${
+              isDark
+                ? 'bg-emerald-500/20 border-emerald-400/40 text-emerald-300'
+                : 'bg-[#6FAF8F]/20 border-[#6FAF8F]/40 text-white'
+            }`}>
               Saves {recipe.rescueWeight}
             </span>
-            <span className="px-3 py-1 rounded-full bg-[#ffb780]/20 border border-[#ffb780]/40 text-[#ffb780] font-mono font-bold text-xs">
+            <span className={`px-3 py-1 rounded-full border font-mono font-bold text-xs ${
+              isDark
+                ? 'bg-[#ffb780]/20 border-[#ffb780]/40 text-[#ffb780]'
+                : 'bg-[#D9826B]/20 border-[#D9826B]/40 text-white'
+            }`}>
               Saves {recipe.moneySaved}
             </span>
           </div>
@@ -85,7 +109,9 @@ export const RecipeDetailModal: React.FC = () => {
           {/* Title overlay */}
           <div className="absolute bottom-4 left-6 right-6">
             <h2 className="font-display text-2xl font-black text-white">{recipe.title}</h2>
-            <p className="text-xs text-[#a1e3f9] font-medium mt-0.5">{recipe.subtitle || recipe.description}</p>
+            <p className={`text-xs font-medium mt-0.5 ${isDark ? 'text-[#a1e3f9]' : 'text-[#EBF3EB]'}`}>
+              {recipe.subtitle || recipe.description}
+            </p>
           </div>
         </div>
 
@@ -93,56 +119,86 @@ export const RecipeDetailModal: React.FC = () => {
         <div className="p-6 overflow-y-auto space-y-6 flex-1 pr-4">
           {/* Quick Metrics */}
           <div className="grid grid-cols-3 gap-3">
-            <div className="p-3 rounded-2xl bg-[#151d20] border border-white/5 flex items-center gap-3">
-              <div className="w-8 h-8 rounded-xl bg-white/5 flex items-center justify-center text-[#a1e3f9]">
+            <div className={`p-3 rounded-2xl border flex items-center gap-3 ${
+              isDark ? 'bg-[#151d20] border-white/5' : 'bg-[#F7F5EF] border-[#E4DED2]'
+            }`}>
+              <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${
+                isDark ? 'bg-white/5 text-[#a1e3f9]' : 'bg-[#FFFFFF] text-[#557A62] shadow-sm'
+              }`}>
                 <Clock className="w-4 h-4" />
               </div>
               <div>
-                <p className="text-[10px] text-[#8e989b] uppercase font-bold">Cooking Time</p>
-                <p className="text-xs font-bold text-white">
+                <p className={`text-[10px] uppercase font-bold ${isDark ? 'text-[#8e989b]' : 'text-[#68736D]'}`}>
+                  Cooking Time
+                </p>
+                <p className={`text-xs font-bold ${isDark ? 'text-white' : 'text-[#24332D]'}`}>
                   {recipe.estimatedCookingTime || `${recipe.prepTime} / ${recipe.cookTime}`}
                 </p>
               </div>
             </div>
 
-            <div className="p-3 rounded-2xl bg-[#151d20] border border-white/5 flex items-center gap-3">
-              <div className="w-8 h-8 rounded-xl bg-white/5 flex items-center justify-center text-emerald-400">
+            <div className={`p-3 rounded-2xl border flex items-center gap-3 ${
+              isDark ? 'bg-[#151d20] border-white/5' : 'bg-[#F7F5EF] border-[#E4DED2]'
+            }`}>
+              <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${
+                isDark ? 'bg-white/5 text-emerald-400' : 'bg-[#FFFFFF] text-[#557A62] shadow-sm'
+              }`}>
                 <Users className="w-4 h-4" />
               </div>
               <div>
-                <p className="text-[10px] text-[#8e989b] uppercase font-bold">Servings</p>
-                <p className="text-xs font-bold text-white">{recipe.servings} Servings</p>
+                <p className={`text-[10px] uppercase font-bold ${isDark ? 'text-[#8e989b]' : 'text-[#68736D]'}`}>
+                  Servings
+                </p>
+                <p className={`text-xs font-bold ${isDark ? 'text-white' : 'text-[#24332D]'}`}>
+                  {recipe.servings} Servings
+                </p>
               </div>
             </div>
 
-            <div className="p-3 rounded-2xl bg-[#151d20] border border-white/5 flex items-center gap-3">
-              <div className="w-8 h-8 rounded-xl bg-white/5 flex items-center justify-center text-[#ffb780]">
+            <div className={`p-3 rounded-2xl border flex items-center gap-3 ${
+              isDark ? 'bg-[#151d20] border-white/5' : 'bg-[#F7F5EF] border-[#E4DED2]'
+            }`}>
+              <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${
+                isDark ? 'bg-white/5 text-[#ffb780]' : 'bg-[#FFFFFF] text-[#D9826B] shadow-sm'
+              }`}>
                 <DollarSign className="w-4 h-4" />
               </div>
               <div>
-                <p className="text-[10px] text-[#8e989b] uppercase font-bold">Estimated Savings</p>
-                <p className="text-xs font-bold text-[#ffb780]">{recipe.moneySaved}</p>
+                <p className={`text-[10px] uppercase font-bold ${isDark ? 'text-[#8e989b]' : 'text-[#68736D]'}`}>
+                  Estimated Savings
+                </p>
+                <p className={`text-xs font-bold ${isDark ? 'text-[#ffb780]' : 'text-[#D9826B]'}`}>
+                  {recipe.moneySaved}
+                </p>
               </div>
             </div>
           </div>
 
           {/* Waste Saving Tip if available */}
           {recipe.wasteSavingTip && (
-            <div className="p-3.5 rounded-2xl bg-[#a1e3f9]/10 border border-[#a1e3f9]/20 flex items-start gap-2.5">
-              <Lightbulb className="w-4 h-4 text-[#a1e3f9] shrink-0 mt-0.5" />
+            <div className={`p-3.5 rounded-2xl border flex items-start gap-2.5 ${
+              isDark ? 'bg-[#a1e3f9]/10 border-[#a1e3f9]/20' : 'bg-[#EBF3EB] border-[#6FAF8F]/30'
+            }`}>
+              <Lightbulb className={`w-4 h-4 shrink-0 mt-0.5 ${isDark ? 'text-[#a1e3f9]' : 'text-[#557A62]'}`} />
               <div className="text-xs">
-                <span className="font-bold text-[#a1e3f9]">Smart Kitchen Tip: </span>
-                <span className="text-[#dbe4e8]">{recipe.wasteSavingTip}</span>
+                <span className={`font-bold ${isDark ? 'text-[#a1e3f9]' : 'text-[#557A62]'}`}>
+                  Smart Kitchen Tip:{' '}
+                </span>
+                <span className={isDark ? 'text-[#dbe4e8]' : 'text-[#24332D]'}>
+                  {recipe.wasteSavingTip}
+                </span>
               </div>
             </div>
           )}
 
           {/* Full Ingredients & Quantities Breakdown */}
           <div className="space-y-3">
-            <h3 className="font-display text-sm font-bold text-white uppercase tracking-wider flex items-center justify-between">
+            <h3 className={`font-display text-sm font-bold uppercase tracking-wider flex items-center justify-between ${
+              isDark ? 'text-white' : 'text-[#24332D]'
+            }`}>
               <span>Ingredients & Quantities</span>
               {recipe.ingredientsWithQuantities && (
-                <span className="text-xs text-[#8e989b] font-mono normal-case">
+                <span className={`text-xs font-mono normal-case ${isDark ? 'text-[#8e989b]' : 'text-[#68736D]'}`}>
                   {recipe.ingredientsWithQuantities.filter((i) => i.isAvailable).length} available / {recipe.ingredientsWithQuantities.length} total
                 </span>
               )}
@@ -155,19 +211,31 @@ export const RecipeDetailModal: React.FC = () => {
                     key={idx}
                     className={`p-3 rounded-xl border flex items-center justify-between text-xs transition-all ${
                       item.isAvailable
-                        ? 'bg-emerald-500/10 border-emerald-500/25 text-emerald-200'
-                        : 'bg-[#ffb780]/10 border-[#ffb780]/25 text-[#ffb780]'
+                        ? isDark
+                          ? 'bg-emerald-500/10 border-emerald-500/25 text-emerald-200'
+                          : 'bg-[#6FAF8F]/15 border-[#6FAF8F]/30 text-[#43634F]'
+                        : isDark
+                        ? 'bg-[#ffb780]/10 border-[#ffb780]/25 text-[#ffb780]'
+                        : 'bg-[#F2B49F]/20 border-[#F2B49F]/40 text-[#B8573E]'
                     }`}
                   >
                     <div className="flex items-center gap-2">
-                      <span className={`w-2 h-2 rounded-full ${item.isAvailable ? 'bg-emerald-400' : 'bg-[#ffb780]'}`} />
-                      <span className="font-semibold capitalize text-white">{item.name}</span>
+                      <span className={`w-2 h-2 rounded-full ${
+                        item.isAvailable
+                          ? isDark ? 'bg-emerald-400' : 'bg-[#557A62]'
+                          : isDark ? 'bg-[#ffb780]' : 'bg-[#D9826B]'
+                      }`} />
+                      <span className={`font-semibold capitalize ${isDark ? 'text-white' : 'text-[#24332D]'}`}>
+                        {item.name}
+                      </span>
                     </div>
                     <div className="flex items-center gap-2">
                       <span className="font-mono text-[11px] opacity-80">{item.quantity}</span>
                       <span
                         className={`text-[10px] px-1.5 py-0.5 rounded font-mono font-bold ${
-                          item.isAvailable ? 'bg-emerald-500/20 text-emerald-300' : 'bg-[#ffb780]/20 text-[#ffb780]'
+                          item.isAvailable
+                            ? isDark ? 'bg-emerald-500/20 text-emerald-300' : 'bg-[#6FAF8F]/25 text-[#43634F]'
+                            : isDark ? 'bg-[#ffb780]/20 text-[#ffb780]' : 'bg-[#F2B49F]/30 text-[#B8573E]'
                         }`}
                       >
                         {item.isAvailable ? 'Available' : 'Missing'}
@@ -181,7 +249,11 @@ export const RecipeDetailModal: React.FC = () => {
                 {recipe.pantryItems.map((item, i) => (
                   <span
                     key={i}
-                    className="px-3 py-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-xs text-emerald-300 flex items-center gap-1.5 font-medium"
+                    className={`px-3 py-1.5 rounded-xl border text-xs flex items-center gap-1.5 font-medium ${
+                      isDark
+                        ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-300'
+                        : 'bg-[#6FAF8F]/15 border-[#6FAF8F]/30 text-[#43634F]'
+                    }`}
                   >
                     <span>✓</span>
                     <span>{item}</span>
@@ -194,16 +266,24 @@ export const RecipeDetailModal: React.FC = () => {
           {/* Missing Ingredients & Shopping List Trigger */}
           {recipe.missingIngredients && recipe.missingIngredients.length > 0 && (
             <div className="space-y-2">
-              <h3 className="font-display text-xs font-bold text-[#ffb780] uppercase tracking-wider flex items-center gap-1.5">
-                <ShieldAlert className="w-4 h-4 text-[#ffb780]" />
+              <h3 className={`font-display text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 ${
+                isDark ? 'text-[#ffb780]' : 'text-[#D9826B]'
+              }`}>
+                <ShieldAlert className="w-4 h-4" />
                 <span>You'll Also Need ({recipe.missingIngredients.length})</span>
               </h3>
-              <div className="p-3.5 rounded-2xl bg-[#ffb780]/10 border border-[#ffb780]/20 flex flex-wrap items-center justify-between gap-3">
+              <div className={`p-3.5 rounded-2xl border flex flex-wrap items-center justify-between gap-3 ${
+                isDark
+                  ? 'bg-[#ffb780]/10 border-[#ffb780]/20'
+                  : 'bg-[#FFFDF8] border-[#D9826B]/30'
+              }`}>
                 <div className="flex flex-wrap gap-2">
                   {recipe.missingIngredients.map((item, i) => (
                     <span
                       key={i}
-                      className="px-3 py-1 rounded-lg bg-[#ffb780]/20 text-[#ffb780] text-xs font-bold"
+                      className={`px-3 py-1 rounded-lg text-xs font-bold ${
+                        isDark ? 'bg-[#ffb780]/20 text-[#ffb780]' : 'bg-[#F2B49F]/25 text-[#B8573E]'
+                      }`}
                     >
                       + {item}
                     </span>
@@ -212,7 +292,11 @@ export const RecipeDetailModal: React.FC = () => {
                 <button
                   type="button"
                   onClick={handleAddMissingToShopping}
-                  className="px-3 py-1.5 rounded-xl bg-[#ffb780] hover:bg-[#ffd7b2] text-[#4a2800] text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-sm"
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-sm ${
+                    isDark
+                      ? 'bg-[#ffb780] hover:bg-[#ffd7b2] text-[#4a2800]'
+                      : 'bg-[#D9826B] hover:bg-[#C2715C] text-white'
+                  }`}
                 >
                   <ShoppingCart className="w-3.5 h-3.5" />
                   <span>Add to Shopping List</span>
@@ -224,25 +308,31 @@ export const RecipeDetailModal: React.FC = () => {
           {/* Possible Substitutions */}
           {recipe.substitutions && recipe.substitutions.length > 0 && (
             <div className="space-y-2">
-              <h3 className="font-display text-xs font-bold text-[#a1e3f9] uppercase tracking-wider flex items-center gap-1.5">
-                <RefreshCw className="w-4 h-4 text-[#a1e3f9]" />
+              <h3 className={`font-display text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 ${
+                isDark ? 'text-[#a1e3f9]' : 'text-[#557A62]'
+              }`}>
+                <RefreshCw className="w-4 h-4" />
                 <span>Possible Substitutions</span>
               </h3>
               <div className="space-y-2">
                 {recipe.substitutions.map((sub, idx) => (
                   <div
                     key={idx}
-                    className="p-3 rounded-2xl bg-[#151d20] border border-white/5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs"
+                    className={`p-3 rounded-2xl border flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs ${
+                      isDark ? 'bg-[#151d20] border-white/5' : 'bg-[#F7F5EF] border-[#E4DED2]'
+                    }`}
                   >
                     <div>
                       <div className="flex items-center gap-2">
-                        <span className="text-[#8e989b] line-through">{sub.original}</span>
-                        <span className="text-white">→</span>
-                        <span className="font-bold text-[#a1e3f9]">{sub.substitute}</span>
+                        <span className={`line-through ${isDark ? 'text-[#8e989b]' : 'text-[#8A9590]'}`}>{sub.original}</span>
+                        <span>→</span>
+                        <span className={`font-bold ${isDark ? 'text-[#a1e3f9]' : 'text-[#557A62]'}`}>{sub.substitute}</span>
                       </div>
-                      {sub.note && <p className="text-[11px] text-[#8e989b] mt-0.5">{sub.note}</p>}
+                      {sub.note && <p className={`text-[11px] mt-0.5 ${isDark ? 'text-[#8e989b]' : 'text-[#68736D]'}`}>{sub.note}</p>}
                     </div>
-                    <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-white/5 text-[#bfc8cc] shrink-0 self-start sm:self-center">
+                    <span className={`text-[10px] font-mono px-2 py-0.5 rounded shrink-0 self-start sm:self-center border ${
+                      isDark ? 'bg-white/5 text-[#bfc8cc] border-white/10' : 'bg-[#FFFFFF] text-[#68736D] border-[#E4DED2]'
+                    }`}>
                       Flexible Swap
                     </span>
                   </div>
@@ -253,25 +343,33 @@ export const RecipeDetailModal: React.FC = () => {
 
           {/* Step-by-Step Cooking Instructions */}
           <div className="space-y-3">
-            <h3 className="font-display text-sm font-bold text-white uppercase tracking-wider">
+            <h3 className={`font-display text-sm font-bold uppercase tracking-wider ${
+              isDark ? 'text-white' : 'text-[#24332D]'
+            }`}>
               Step-by-Step Instructions ({recipe.steps.length} Steps)
             </h3>
             <div className="space-y-2.5">
               {recipe.steps.map((step) => (
                 <div
                   key={step.stepNumber}
-                  className="p-4 rounded-2xl bg-[#151d20] border border-white/5 space-y-2"
+                  className={`p-4 rounded-2xl border space-y-2 ${
+                    isDark ? 'bg-[#151d20] border-white/5' : 'bg-[#F7F5EF] border-[#E4DED2]'
+                  }`}
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2.5">
-                      <span className="w-6 h-6 rounded-full bg-[#a1e3f9]/20 text-[#a1e3f9] font-mono text-xs font-bold flex items-center justify-center">
+                      <span className={`w-6 h-6 rounded-full font-mono text-xs font-bold flex items-center justify-center ${
+                        isDark ? 'bg-[#a1e3f9]/20 text-[#a1e3f9]' : 'bg-[#557A62] text-white'
+                      }`}>
                         {step.stepNumber}
                       </span>
-                      <h4 className="text-xs font-bold text-white">{step.title}</h4>
+                      <h4 className={`text-xs font-bold ${isDark ? 'text-white' : 'text-[#24332D]'}`}>{step.title}</h4>
                     </div>
-                    <span className="text-[11px] font-mono text-[#8e989b]">{step.duration}</span>
+                    <span className={`text-[11px] font-mono ${isDark ? 'text-[#8e989b]' : 'text-[#68736D]'}`}>{step.duration}</span>
                   </div>
-                  <div className="text-xs text-[#bfc8cc] leading-relaxed pl-8 space-y-1">
+                  <div className={`text-xs leading-relaxed pl-8 space-y-1 ${
+                    isDark ? 'text-[#bfc8cc]' : 'text-[#68736D]'
+                  }`}>
                     {step.instructions.map((inst, i) => (
                       <p key={i}>{inst}</p>
                     ))}
@@ -283,15 +381,21 @@ export const RecipeDetailModal: React.FC = () => {
         </div>
 
         {/* Bottom Modal Footer */}
-        <div className="p-4 bg-[#151d20] border-t border-white/10 flex items-center justify-between gap-3 shrink-0">
-          <div className="text-xs text-[#8e989b]">
-            Estimated Cooking: <span className="text-white font-bold">{recipe.estimatedCookingTime || recipe.cookTime}</span>
+        <div className={`p-4 border-t flex items-center justify-between gap-3 shrink-0 ${
+          isDark ? 'bg-[#151d20] border-white/10' : 'bg-[#FFFDF8] border-[#E4DED2]'
+        }`}>
+          <div className={`text-xs ${isDark ? 'text-[#8e989b]' : 'text-[#68736D]'}`}>
+            Estimated Cooking: <span className={`font-bold ${isDark ? 'text-white' : 'text-[#24332D]'}`}>{recipe.estimatedCookingTime || recipe.cookTime}</span>
           </div>
 
           <button
             type="button"
             onClick={() => setIsRecipeDetailOpen(false)}
-            className="px-6 py-2.5 rounded-xl bg-[#1c2529] hover:bg-[#252f33] text-white text-xs font-bold transition-all border border-white/10 cursor-pointer"
+            className={`px-6 py-2.5 rounded-xl text-xs font-bold transition-all border cursor-pointer ${
+              isDark
+                ? 'bg-[#1c2529] hover:bg-[#252f33] text-white border-white/10'
+                : 'bg-[#557A62] hover:bg-[#43634F] text-white border-[#557A62]'
+            }`}
           >
             Close Recipe
           </button>

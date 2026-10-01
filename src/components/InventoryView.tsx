@@ -3,7 +3,8 @@ import { Search, Plus, Minus, Trash2, Pencil } from 'lucide-react';
 import { useKitchen } from '../context/KitchenContext';
 
 export const InventoryView: React.FC = () => {
-  const { inventory, adjustItemQuantity, deleteItem, setIsAddModalOpen, setEditingInventoryItem } = useKitchen();
+  const { inventory, adjustItemQuantity, deleteItem, setIsAddModalOpen, setEditingInventoryItem, theme } = useKitchen();
+  const isDark = theme === 'dark';
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
 
@@ -57,19 +58,27 @@ export const InventoryView: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6 pb-20">
+    <div className={`space-y-6 pb-20 theme-transition ${isDark ? 'text-[#dbe4e8]' : 'text-[#24332D]'}`}>
       {/* Top Banner */}
-      <div className="flex flex-wrap items-center justify-between gap-4 p-5 rounded-2xl bg-[#1c2529] border border-white/10">
+      <div className={`flex flex-wrap items-center justify-between gap-4 p-5 rounded-2xl border shadow-sm transition-all ${
+        isDark ? 'bg-[#1c2529] border-white/10' : 'bg-[#FFFFFF] border-[#E4DED2]'
+      }`}>
         <div>
-          <h2 className="font-display text-xl font-bold text-white">My Food & Food Storage</h2>
-          <p className="text-xs text-[#8e989b] mt-0.5">
+          <h2 className={`font-display text-xl font-bold ${isDark ? 'text-white' : 'text-[#24332D]'}`}>
+            My Food & Food Storage
+          </h2>
+          <p className={`text-xs mt-0.5 ${isDark ? 'text-[#8e989b]' : 'text-[#68736D]'}`}>
             Track your fresh vegetables, basic foods, and storage locations
           </p>
         </div>
         <div className="flex items-center gap-2">
           <button
             onClick={() => setIsAddModalOpen(true)}
-            className="px-4 py-2 rounded-xl bg-[#a1e3f9] hover:bg-[#c2effc] text-[#003642] font-bold text-xs flex items-center gap-2 shadow-sm transition-all"
+            className={`px-4 py-2 rounded-xl font-bold text-xs flex items-center gap-2 shadow-sm transition-all cursor-pointer ${
+              isDark
+                ? 'bg-[#a1e3f9] hover:bg-[#c2effc] text-[#003642]'
+                : 'bg-[#557A62] hover:bg-[#43634F] text-white'
+            }`}
           >
             <Plus className="w-4 h-4" />
             <span>Add Food Item</span>
@@ -80,13 +89,19 @@ export const InventoryView: React.FC = () => {
       {/* Search & Category Filter Pills */}
       <div className="space-y-3">
         <div className="relative">
-          <Search className="w-4 h-4 text-[#8e989b] absolute left-3.5 top-1/2 -translate-y-1/2" />
+          <Search className={`w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 ${
+            isDark ? 'text-[#8e989b]' : 'text-[#68736D]'
+          }`} />
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search food items, spices, veggies, locations..."
-            className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[#151d20] border border-white/10 text-white text-xs placeholder-[#5a6568] focus:border-[#a1e3f9] outline-none"
+            className={`w-full pl-10 pr-4 py-2.5 rounded-xl border text-xs outline-none transition-all ${
+              isDark
+                ? 'bg-[#151d20] border-white/10 text-white placeholder-[#5a6568] focus:border-[#a1e3f9]'
+                : 'bg-[#FFFFFF] border-[#E4DED2] text-[#24332D] placeholder-[#8A9590] focus:border-[#6FAF8F] focus:ring-1 focus:ring-[#6FAF8F]'
+            }`}
           />
         </div>
 
@@ -96,10 +111,14 @@ export const InventoryView: React.FC = () => {
             <button
               key={cat}
               onClick={() => setSelectedCategory(cat)}
-              className={`px-3.5 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all ${
+              className={`px-3.5 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all cursor-pointer ${
                 selectedCategory === cat
-                  ? 'bg-[#a1e3f9] text-[#003642] font-bold shadow-sm'
-                  : 'bg-[#1c2529] text-[#bfc8cc] hover:text-white border border-white/5'
+                  ? isDark
+                    ? 'bg-[#a1e3f9] text-[#003642] font-bold shadow-sm'
+                    : 'bg-[#557A62] text-white font-bold shadow-sm'
+                  : isDark
+                  ? 'bg-[#1c2529] text-[#bfc8cc] hover:text-white border border-white/5'
+                  : 'bg-[#FFFFFF] text-[#68736D] hover:text-[#24332D] border border-[#E4DED2]'
               }`}
             >
               {cat}
@@ -115,34 +134,52 @@ export const InventoryView: React.FC = () => {
           return (
             <div
               key={item.id}
-              className={`p-4 rounded-2xl bg-[#1c2529] border transition-all ${
-                isUrgent ? 'border-rose-500/30' : 'border-white/10 hover:border-white/20'
+              className={`p-4 rounded-2xl border transition-all shadow-sm ${
+                isDark
+                  ? `bg-[#1c2529] ${isUrgent ? 'border-rose-500/30' : 'border-white/10 hover:border-white/20'}`
+                  : `bg-[#FFFFFF] ${isUrgent ? 'border-[#D9826B]/50 bg-[#FFFDF8]' : 'border-[#E4DED2] hover:border-[#6FAF8F]/40'}`
               }`}
             >
               <div className="flex items-start justify-between">
                 <div>
                   <div className="flex items-center gap-2">
-                    <h3 className="font-semibold text-white text-sm">{item.name}</h3>
+                    <h3 className={`font-semibold text-sm ${isDark ? 'text-white' : 'text-[#24332D]'}`}>
+                      {item.name}
+                    </h3>
                     {isUrgent && (
-                      <span className="text-[10px] px-2 py-0.5 rounded bg-rose-500/20 text-rose-300 font-mono font-bold">
+                      <span className={`text-[10px] px-2 py-0.5 rounded font-mono font-bold ${
+                        isDark
+                          ? 'bg-rose-500/20 text-rose-300'
+                          : 'bg-[#D9826B]/15 text-[#D9826B]'
+                      }`}>
                         {item.daysLeft <= 0 ? 'Today' : `${item.daysLeft}d left`}
                       </span>
                     )}
                   </div>
-                  <p className="text-[11px] text-[#8e989b] mt-0.5">{item.location}</p>
+                  <p className={`text-[11px] mt-0.5 ${isDark ? 'text-[#8e989b]' : 'text-[#68736D]'}`}>
+                    {item.location}
+                  </p>
                 </div>
 
                 <div className="flex items-center gap-1">
                   <button
                     onClick={() => setEditingInventoryItem(item)}
-                    className="text-[#8e989b] hover:text-[#a1e3f9] p-1.5 rounded-lg hover:bg-white/5 transition-all"
+                    className={`p-1.5 rounded-lg transition-all cursor-pointer ${
+                      isDark
+                        ? 'text-[#8e989b] hover:text-[#a1e3f9] hover:bg-white/5'
+                        : 'text-[#68736D] hover:text-[#24332D] hover:bg-[#F7F5EF]'
+                    }`}
                     title="Edit item details"
                   >
                     <Pencil className="w-3.5 h-3.5" />
                   </button>
                   <button
                     onClick={() => deleteItem(item.id)}
-                    className="text-[#8e989b] hover:text-rose-400 p-1.5 rounded-lg hover:bg-white/5 transition-all"
+                    className={`p-1.5 rounded-lg transition-all cursor-pointer ${
+                      isDark
+                        ? 'text-[#8e989b] hover:text-rose-400 hover:bg-white/5'
+                        : 'text-[#68736D] hover:text-[#D9826B] hover:bg-[#F7F5EF]'
+                    }`}
                     title="Remove from My Food"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
@@ -151,28 +188,50 @@ export const InventoryView: React.FC = () => {
               </div>
 
               {/* Quantity Controller */}
-              <div className="mt-4 p-3 rounded-xl bg-[#151d20] border border-white/5 flex items-center justify-between">
+              <div className={`mt-4 p-3 rounded-xl border flex items-center justify-between ${
+                isDark
+                  ? 'bg-[#151d20] border-white/5'
+                  : 'bg-[#F7F5EF] border-[#E4DED2]'
+              }`}>
                 <div>
-                  <p className="text-[10px] text-[#8e989b] uppercase font-bold tracking-wider">Current Amount</p>
+                  <p className={`text-[10px] uppercase font-bold tracking-wider ${
+                    isDark ? 'text-[#8e989b]' : 'text-[#68736D]'
+                  }`}>
+                    Current Amount
+                  </p>
                   <div className="flex items-baseline gap-1 mt-0.5">
-                    <span className="font-mono text-base font-extrabold text-[#a1e3f9]">
+                    <span className={`font-mono text-base font-extrabold ${
+                      isDark ? 'text-[#a1e3f9]' : 'text-[#557A62]'
+                    }`}>
                       {item.quantity}
                     </span>
-                    <span className="text-xs text-[#bfc8cc] font-medium">{item.unit}</span>
+                    <span className={`text-xs font-medium ${isDark ? 'text-[#bfc8cc]' : 'text-[#68736D]'}`}>
+                      {item.unit}
+                    </span>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-1.5 bg-[#1c2529] p-1 rounded-lg border border-white/10">
+                <div className={`flex items-center gap-1.5 p-1 rounded-lg border ${
+                  isDark ? 'bg-[#1c2529] border-white/10' : 'bg-[#FFFFFF] border-[#E4DED2]'
+                }`}>
                   <button
                     onClick={() => adjustItemQuantity(item.id, -getDeltaForUnit(item.unit))}
-                    className="w-8 h-8 rounded-md bg-[#252f33] hover:bg-[#323d42] text-white flex items-center justify-center text-xs font-bold active:scale-95 transition-all"
+                    className={`w-8 h-8 rounded-md flex items-center justify-center text-xs font-bold active:scale-95 transition-all cursor-pointer ${
+                      isDark
+                        ? 'bg-[#252f33] hover:bg-[#323d42] text-white'
+                        : 'bg-[#F7F5EF] hover:bg-[#EFE9DE] text-[#24332D]'
+                    }`}
                     title="Decrease amount"
                   >
                     <Minus className="w-3.5 h-3.5" />
                   </button>
                   <button
                     onClick={() => adjustItemQuantity(item.id, getDeltaForUnit(item.unit))}
-                    className="w-8 h-8 rounded-md bg-[#252f33] hover:bg-[#323d42] text-[#a1e3f9] flex items-center justify-center text-xs font-bold active:scale-95 transition-all"
+                    className={`w-8 h-8 rounded-md flex items-center justify-center text-xs font-bold active:scale-95 transition-all cursor-pointer ${
+                      isDark
+                        ? 'bg-[#252f33] hover:bg-[#323d42] text-[#a1e3f9]'
+                        : 'bg-[#557A62] hover:bg-[#43634F] text-white'
+                    }`}
                     title="Increase amount"
                   >
                     <Plus className="w-3.5 h-3.5" />
@@ -181,7 +240,9 @@ export const InventoryView: React.FC = () => {
               </div>
 
               {/* Footer Meta */}
-              <div className="mt-3 flex items-center justify-between text-[11px] text-[#8e989b]">
+              <div className={`mt-3 flex items-center justify-between text-[11px] ${
+                isDark ? 'text-[#8e989b]' : 'text-[#68736D]'
+              }`}>
                 <span>Category: {displayCategoryName(item.category)}</span>
                 <span>Expiry: {item.expiryDate}</span>
               </div>
@@ -191,7 +252,11 @@ export const InventoryView: React.FC = () => {
       </div>
 
       {filteredItems.length === 0 && (
-        <div className="p-8 text-center rounded-2xl bg-[#1c2529] border border-white/10 text-[#8e989b]">
+        <div className={`p-8 text-center rounded-2xl border ${
+          isDark
+            ? 'bg-[#1c2529] border-white/10 text-[#8e989b]'
+            : 'bg-[#FFFFFF] border-[#E4DED2] text-[#68736D]'
+        }`}>
           No food items matched your search. Click "+ Add Food Item" to add new food.
         </div>
       )}

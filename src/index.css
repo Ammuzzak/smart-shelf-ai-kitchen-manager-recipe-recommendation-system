@@ -3,42 +3,36 @@
 @theme {
   --font-display: 'Montserrat', sans-serif;
   --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  --color-brand-bg: #F7F3EA;
-  --color-brand-surface: #FFFDF8;
-  --color-brand-card: #FFFFFF;
-  --color-brand-card-hover: #FBF9F4;
-  --color-brand-overlay: #F0EAE1;
-  --color-brand-primary: #8BAE8B;
-  --color-brand-secondary: #D9826B;
-  --color-brand-alert: #D9826B;
+}
+
+html.dark {
+  color-scheme: dark;
+}
+
+html.light {
+  color-scheme: light;
 }
 
 body {
   font-family: var(--font-sans);
-  background-color: #F7F3EA;
-  color: #24352F;
   margin: 0;
   padding: 0;
   overflow-x: hidden;
+  transition: background-color 200ms ease, color 200ms ease;
+}
+
+html.dark body {
+  background-color: #0d1518;
+  color: #dbe4e8;
+}
+
+html.light body {
+  background-color: #F7F5EF;
+  color: #24332D;
 }
 
 h1, h2, h3, h4, h5, h6, .font-display {
   font-family: var(--font-display);
-}
-
-/* Glassmorphism and ghost border helper for cozy theme */
-.ghost-border {
-  border: 1px solid #E5DED2;
-}
-
-.ghost-border-active {
-  border: 1px solid #8BAE8B;
-}
-
-.glass-nav {
-  background: rgba(255, 253, 248, 0.94);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
 }
 
 /* Custom subtle scrollbar */
@@ -46,13 +40,23 @@ h1, h2, h3, h4, h5, h6, .font-display {
   width: 6px;
   height: 6px;
 }
-::-webkit-scrollbar-track {
-  background: #F7F3EA;
+html.dark ::-webkit-scrollbar-track {
+  background: #0d1518;
 }
-::-webkit-scrollbar-thumb {
+html.light ::-webkit-scrollbar-track {
+  background: #F7F5EF;
+}
+html.dark ::-webkit-scrollbar-thumb {
+  background: #252f33;
+  border-radius: 9999px;
+}
+html.light ::-webkit-scrollbar-thumb {
   background: #D9D2C5;
   border-radius: 9999px;
 }
-::-webkit-scrollbar-thumb:hover {
+html.dark ::-webkit-scrollbar-thumb:hover {
+  background: #36444a;
+}
+html.light ::-webkit-scrollbar-thumb:hover {
   background: #8BAE8B;
 }
