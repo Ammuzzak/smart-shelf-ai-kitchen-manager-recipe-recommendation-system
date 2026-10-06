@@ -15,9 +15,13 @@ import { AddInventoryModal } from './components/AddInventoryModal';
 import { EditInventoryModal } from './components/EditInventoryModal';
 import { RecipeDetailModal } from './components/RecipeDetailModal';
 import { HeyChefModal } from './components/HeyChefModal';
+import { LoginPage } from './components/LoginPage';
 
 const MainContent: React.FC = () => {
-  const { activeScreen, theme } = useKitchen();
+  const {
+    activeScreen,
+    theme,
+  } = useKitchen();
   const isDark = theme === 'dark';
 
   const renderScreen = () => {
@@ -72,10 +76,36 @@ const MainContent: React.FC = () => {
   );
 };
 
+const AppShell: React.FC = () => {
+  const { currentUser, isAuthChecking, theme } = useKitchen();
+  const isDark = theme === 'dark';
+
+  if (isAuthChecking) {
+    return (
+      <div
+        className={`min-h-screen flex items-center justify-center transition-colors duration-200 ${
+          isDark ? 'bg-[#0d1518] text-[#dbe4e8]' : 'bg-[#F7F5EF] text-[#24332D]'
+        }`}
+      >
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-8 h-8 border-2 border-[#557A62] border-t-transparent rounded-full animate-spin" />
+          <p className="text-xs font-mono font-medium">Starting Smart Shelf...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!currentUser) {
+    return <LoginPage />;
+  }
+
+  return <MainContent />;
+};
+
 export default function App() {
   return (
     <KitchenProvider>
-      <MainContent />
+      <AppShell />
     </KitchenProvider>
   );
 }

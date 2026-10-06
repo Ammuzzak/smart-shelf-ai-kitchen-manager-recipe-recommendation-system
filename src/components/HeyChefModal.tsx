@@ -355,6 +355,8 @@ export const HeyChefModal: React.FC = () => {
   const formattedTimer = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
 
   const suggestedCommands = [
+    { text: 'Maggi', desc: 'Inspects real inventory for Maggi & add-ons' },
+    { text: 'maggi epdi seiya', desc: 'Tanglish Maggi preparation & availability' },
     { text: 'enna sapadalam ippo, konjam quick a', desc: 'Tanglish quick recipe request' },
     { text: 'En kitta tomato iruku enna panna mudiyum?', desc: 'Tanglish ingredient query' },
     { text: 'muttai boil panna evlo time?', desc: 'Cooking time in Tanglish' },

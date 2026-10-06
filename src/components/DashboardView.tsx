@@ -31,6 +31,7 @@ import { Recipe, InventoryItem } from '../types';
 
 export const DashboardView: React.FC = () => {
   const {
+    currentUser,
     inventory,
     recipes,
     shoppingItems,
@@ -48,13 +49,13 @@ export const DashboardView: React.FC = () => {
   const isDark = theme === 'dark';
   const [chefQueryInput, setChefQueryInput] = useState('');
 
-  // 1. Dynamic Greeting based on time of day
+  // 1. Dynamic Greeting based on time of day and authenticated user name
   const greeting = useMemo(() => {
     const hour = new Date().getHours();
-    if (hour < 12) return 'Good morning! 👋';
-    if (hour < 17) return 'Good afternoon! 👋';
-    return 'Good evening! 👋';
-  }, []);
+    const timeGreeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
+    const userName = currentUser?.name ? `, ${currentUser.name}` : '';
+    return `${timeGreeting}${userName} 👋`;
+  }, [currentUser?.name]);
 
   // -------------------------------------------------------------
   // EXPLICIT DASHBOARD AUDITED THRESHOLDS & CALCULATIONS
@@ -138,7 +139,7 @@ export const DashboardView: React.FC = () => {
   );
 
   const restockCount = useMemo(() => {
-    const pendingShopping = shoppingItems.filter((s) => !s.completed);
+    const pendingShopping = shoppingItems.filter((s: any) => !s.checked && !s.completed);
     const lowStockNames = new Set(lowStockItems.map((i) => i.name.toLowerCase().trim()));
     const additionalPendingShopping = pendingShopping.filter(
       (s) => !lowStockNames.has(s.name.toLowerCase().trim())
@@ -297,7 +298,7 @@ export const DashboardView: React.FC = () => {
             <button
               type="button"
               onClick={() => setIsAddModalOpen(true)}
-              className={`px-5 py-3 rounded-2xl border text-xs sm:text-sm font-bold flex items-center gap-2.5 transition-all cursor-pointer shadow-md hover:-translate-y-0.5 ${
+              className={`px-4 sm:px-5 py-3 rounded-2xl border text-xs sm:text-sm font-bold flex items-center gap-2.5 transition-all cursor-pointer shadow-md hover:-translate-y-0.5 ${
                 isDark
                   ? 'bg-[#151f22] hover:bg-[#1c292e] border-white/10 hover:border-[#a1e3f9]/40 text-white'
                   : 'bg-[#FFFFFF] hover:bg-[#F7F5EF] border-[#E4DED2] hover:border-[#6FAF8F] text-[#24332D]'
@@ -314,7 +315,7 @@ export const DashboardView: React.FC = () => {
             <button
               type="button"
               onClick={() => setIsHeyChefOpen(true)}
-              className={`px-6 py-3 rounded-2xl text-xs sm:text-sm font-display font-black flex items-center gap-2.5 transition-all cursor-pointer shadow-lg hover:-translate-y-0.5 ${
+              className={`px-5 sm:px-6 py-3 rounded-2xl text-xs sm:text-sm font-display font-black flex items-center gap-2.5 transition-all cursor-pointer shadow-lg hover:-translate-y-0.5 ${
                 isDark
                   ? 'bg-gradient-to-r from-[#006073] via-[#008ba3] to-[#a1e3f9] hover:from-[#00748c] hover:to-[#b7edfc] text-[#00222b] shadow-[#a1e3f9]/25'
                   : 'bg-gradient-to-r from-[#A99BCB] to-[#8EC5D6] hover:from-[#BDB0DC] hover:to-[#A3CBE0] text-white shadow-[#A99BCB]/30'
@@ -734,6 +735,7 @@ export const DashboardView: React.FC = () => {
             <div className="flex flex-wrap gap-2">
               {[
                 { label: 'What can I cook?', color: isDark ? 'text-[#a1e3f9]' : 'text-[#2C5768]' },
+                { label: 'Maggi', color: isDark ? 'text-[#ffb780]' : 'text-[#D9826B]' },
                 { label: 'Use ingredients before expiry', color: isDark ? 'text-[#ffb780]' : 'text-[#D9826B]' },
                 { label: 'Quick dinner', color: isDark ? 'text-[#F6C85F]' : 'text-[#8C671C]' },
                 { label: 'South Indian', color: isDark ? 'text-[#8FD3B6]' : 'text-[#557A62]' },

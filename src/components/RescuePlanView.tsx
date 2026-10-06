@@ -1,11 +1,13 @@
-import React, { useState } from 'react';
-import { TrendingUp, ChevronRight } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import { TrendingUp, ChevronRight, Clock, Sparkles } from 'lucide-react';
 import { useKitchen } from '../context/KitchenContext';
+import { getDaysUntilExpiry, isExpiringSoon } from '../utils/dateUtils';
 
 export const RescuePlanView: React.FC = () => {
   const {
     dailySchedule,
     recipes,
+    inventory,
     setActiveRecipe,
     setSelectedRecipeForDetail,
     setIsRecipeDetailOpen,
@@ -13,40 +15,63 @@ export const RescuePlanView: React.FC = () => {
   } = useKitchen();
   const isDark = theme === 'dark';
 
-  const [selectedDate, setSelectedDate] = useState('Wed 14');
+  // 7-day rolling plan derived strictly from local calendar dates
+  const dates = useMemo(() => {
+    const list = [];
+    const now = new Date();
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(now);
+      d.setDate(now.getDate() + i);
+      const dayName = d.toLocaleDateString('en-US', { weekday: 'short' });
+      const numStr = String(d.getDate()).padStart(2, '0');
+      const isToday = i === 0;
+      list.push({
+        key: `${dayName} ${numStr}`,
+        day: isToday ? 'Today' : dayName,
+        num: numStr,
+        isToday,
+        targetGrams: `${300 + (i % 4) * 80}g`,
+        targetSavings: `₹ ${90 + (i % 4) * 35}`,
+        healthScore: 88 + (i % 6),
+      });
+    }
+    return list;
+  }, []);
 
-  const dates = [
-    { day: 'Mon', num: '12', waste: '380g', saved: '₹ 110', health: 82 },
-    { day: 'Tue', num: '13', waste: '520g', saved: '₹ 145', health: 88 },
-    { day: 'Wed', num: '14', waste: '560g', saved: '₹ 185', health: 85 },
-    { day: 'Thu', num: '15', waste: '410g', saved: '₹ 120', health: 91 },
-    { day: 'Fri', num: '16', waste: '620g', saved: '₹ 210', health: 86 },
-    { day: 'Sat', num: '17', waste: '480g', saved: '₹ 130', health: 93 },
-    { day: 'Sun', num: '18', waste: '590g', saved: '₹ 195', health: 89 },
-  ];
+  const [selectedDateKey, setSelectedDateKey] = useState<string>(() => dates[0]?.key || '');
 
-  const currentDayStats = dates.find((d) => `${d.day} ${d.num}` === selectedDate) || dates[2];
+  const currentDayStats = dates.find((d) => d.key === selectedDateKey) || dates[0];
+
+  // Expiring items from real inventory that need rescue
+  const expiringPantryItems = useMemo(() => {
+    return inventory
+      .filter((i) => i.quantity > 0 && isExpiringSoon(i.expiryDate, 3))
+      .sort((a, b) => getDaysUntilExpiry(a.expiryDate) - getDaysUntilExpiry(b.expiryDate));
+  }, [inventory]);
 
   const handleOpenRecipe = (recipeId: string) => {
     const match = recipes.find((r) => r.id === recipeId) || recipes[0];
-    setActiveRecipe(match);
-    setSelectedRecipeForDetail(match);
-    setIsRecipeDetailOpen(true);
+    if (match) {
+      setActiveRecipe(match);
+      setSelectedRecipeForDetail(match);
+      setIsRecipeDetailOpen(true);
+    }
   };
 
   return (
     <div className={`space-y-6 pb-20 theme-transition ${isDark ? 'text-[#dbe4e8]' : 'text-[#24332D]'}`}>
-      {/* 1. Date Selector Bar */}
-      <div className={`p-4 rounded-2xl border flex items-center gap-3 overflow-x-auto scrollbar-none shadow-sm transition-all ${
-        isDark ? 'bg-[#1c2529] border-white/10' : 'bg-[#FFFFFF] border-[#E4DED2]'
-      }`}>
+      {/* 1. Date Selector Bar (Local calendar week) */}
+      <div
+        className={`p-4 rounded-2xl border flex items-center gap-3 overflow-x-auto scrollbar-none shadow-sm transition-all ${
+          isDark ? 'bg-[#1c2529] border-white/10' : 'bg-[#FFFFFF] border-[#E4DED2]'
+        }`}
+      >
         {dates.map((d) => {
-          const key = `${d.day} ${d.num}`;
-          const isSelected = selectedDate === key;
+          const isSelected = selectedDateKey === d.key;
           return (
             <button
-              key={key}
-              onClick={() => setSelectedDate(key)}
+              key={d.key}
+              onClick={() => setSelectedDateKey(d.key)}
               className={`flex flex-col items-center py-2.5 px-4 rounded-xl min-w-[70px] transition-all cursor-pointer ${
                 isSelected
                   ? isDark
@@ -57,7 +82,11 @@ export const RescuePlanView: React.FC = () => {
                   : 'bg-[#F7F5EF] text-[#68736D] hover:text-[#24332D] border border-[#E4DED2]'
               }`}
             >
-              <span className={`text-[11px] ${isSelected ? 'font-bold' : isDark ? 'text-[#8e989b]' : 'text-[#68736D]'}`}>
+              <span
+                className={`text-[11px] ${
+                  isSelected ? 'font-bold' : isDark ? 'text-[#8e989b]' : 'text-[#68736D]'
+                }`}
+              >
                 {d.day}
               </span>
               <span className="text-base font-display font-extrabold">{d.num}</span>
@@ -66,61 +95,83 @@ export const RescuePlanView: React.FC = () => {
         })}
       </div>
 
-      {/* 2. Top Stats: Food Saved + Food Health Ring */}
+      {/* 2. Top Stats: Predicted Rescue Target + Storage Health */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* Food Saved Card */}
-        <div className={`p-5 rounded-2xl border flex items-center justify-between shadow-sm transition-all ${
-          isDark ? 'bg-[#1c2529] border-white/10' : 'bg-[#FFFFFF] border-[#E4DED2]'
-        }`}>
+        {/* Rescue Target Card */}
+        <div
+          className={`p-5 rounded-2xl border flex items-center justify-between shadow-sm transition-all ${
+            isDark ? 'bg-[#1c2529] border-white/10' : 'bg-[#FFFFFF] border-[#E4DED2]'
+          }`}
+        >
           <div className="space-y-1">
-            <span className={`text-xs font-bold uppercase tracking-wider ${
-              isDark ? 'text-[#a1e3f9]' : 'text-[#557A62]'
-            }`}>
-              Food Saved ({selectedDate})
+            <span
+              className={`text-xs font-bold uppercase tracking-wider ${
+                isDark ? 'text-[#a1e3f9]' : 'text-[#557A62]'
+              }`}
+            >
+              Rescue Target ({currentDayStats?.day} {currentDayStats?.num})
             </span>
             <div className="flex items-baseline gap-4 pt-1">
               <div>
-                <p className={`text-[10px] ${isDark ? 'text-[#8e989b]' : 'text-[#68736D]'}`}>Food Saved</p>
-                <p className={`font-display text-2xl font-extrabold ${
-                  isDark ? 'text-emerald-400' : 'text-[#557A62]'
-                }`}>
-                  {currentDayStats.waste}
+                <p className={`text-[10px] ${isDark ? 'text-[#8e989b]' : 'text-[#68736D]'}`}>
+                  Target Weight
+                </p>
+                <p
+                  className={`font-display text-2xl font-extrabold ${
+                    isDark ? 'text-emerald-400' : 'text-[#557A62]'
+                  }`}
+                >
+                  {currentDayStats?.targetGrams}
                 </p>
               </div>
               <div className={`border-l pl-4 ${isDark ? 'border-white/10' : 'border-[#E4DED2]'}`}>
-                <p className={`text-[10px] ${isDark ? 'text-[#8e989b]' : 'text-[#68736D]'}`}>Money Saved</p>
-                <p className={`font-display text-2xl font-extrabold ${
-                  isDark ? 'text-[#ffb780]' : 'text-[#D9826B]'
-                }`}>
-                  {currentDayStats.saved}
+                <p className={`text-[10px] ${isDark ? 'text-[#8e989b]' : 'text-[#68736D]'}`}>
+                  Est. Savings
+                </p>
+                <p
+                  className={`font-display text-2xl font-extrabold ${
+                    isDark ? 'text-[#ffb780]' : 'text-[#D9826B]'
+                  }`}
+                >
+                  {currentDayStats?.targetSavings}
                 </p>
               </div>
             </div>
           </div>
-          <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
-            isDark
-              ? 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-400'
-              : 'bg-[#6FAF8F]/20 text-[#557A62]'
-          }`}>
+          <div
+            className={`w-12 h-12 rounded-xl flex items-center justify-center ${
+              isDark
+                ? 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-400'
+                : 'bg-[#6FAF8F]/20 text-[#557A62]'
+            }`}
+          >
             <TrendingUp className="w-6 h-6" />
           </div>
         </div>
 
         {/* Food Health Card */}
-        <div className={`p-5 rounded-2xl border flex items-center justify-between shadow-sm transition-all ${
-          isDark ? 'bg-[#1c2529] border-white/10' : 'bg-[#FFFFFF] border-[#E4DED2]'
-        }`}>
+        <div
+          className={`p-5 rounded-2xl border flex items-center justify-between shadow-sm transition-all ${
+            isDark ? 'bg-[#1c2529] border-white/10' : 'bg-[#FFFFFF] border-[#E4DED2]'
+          }`}
+        >
           <div className="space-y-1">
-            <span className={`text-xs font-bold uppercase tracking-wider ${
-              isDark ? 'text-[#8e989b]' : 'text-[#68736D]'
-            }`}>
-              Food Health
+            <span
+              className={`text-xs font-bold uppercase tracking-wider ${
+                isDark ? 'text-[#8e989b]' : 'text-[#68736D]'
+              }`}
+            >
+              Pantry Freshness Index
             </span>
             <h3 className={`font-display text-sm font-bold ${isDark ? 'text-white' : 'text-[#24332D]'}`}>
-              Food storage in great condition
+              {expiringPantryItems.length > 0
+                ? `${expiringPantryItems.length} items to rescue soon`
+                : 'Pantry in optimal freshness'}
             </h3>
             <p className={`text-[11px] ${isDark ? 'text-[#8e989b]' : 'text-[#68736D]'}`}>
-              No food wasted on {selectedDate}
+              {expiringPantryItems.length > 0
+                ? `Prioritize: ${expiringPantryItems[0].name}`
+                : 'No items currently at risk'}
             </p>
           </div>
 
@@ -142,14 +193,16 @@ export const RescuePlanView: React.FC = () => {
                 strokeWidth="9"
                 fill="transparent"
                 strokeDasharray="251.2"
-                strokeDashoffset={251.2 * (1 - currentDayStats.health / 100)}
+                strokeDashoffset={251.2 * (1 - (currentDayStats?.healthScore || 90) / 100)}
                 strokeLinecap="round"
               />
             </svg>
-            <span className={`absolute font-display text-sm font-bold ${
-              isDark ? 'text-white' : 'text-[#24332D]'
-            }`}>
-              {currentDayStats.health}%
+            <span
+              className={`absolute font-display text-sm font-bold ${
+                isDark ? 'text-white' : 'text-[#24332D]'
+              }`}
+            >
+              {currentDayStats?.healthScore || 90}%
             </span>
           </div>
         </div>
@@ -163,15 +216,17 @@ export const RescuePlanView: React.FC = () => {
               Daily Meal Plan
             </h3>
             <p className={`text-xs ${isDark ? 'text-[#8e989b]' : 'text-[#68736D]'}`}>
-              Three planned meals to use food before it expires
+              Three structured meals to cook ingredients before they expire
             </p>
           </div>
-          <span className={`text-xs font-mono font-medium px-2.5 py-1 rounded-full border ${
-            isDark
-              ? 'bg-[#1c2529] text-[#a1e3f9] border-white/5'
-              : 'bg-[#FFFFFF] text-[#557A62] border-[#E4DED2]'
-          }`}>
-            {selectedDate}
+          <span
+            className={`text-xs font-mono font-medium px-2.5 py-1 rounded-full border ${
+              isDark
+                ? 'bg-[#1c2529] text-[#a1e3f9] border-white/5'
+                : 'bg-[#FFFFFF] text-[#557A62] border-[#E4DED2]'
+            }`}
+          >
+            {currentDayStats?.day} {currentDayStats?.num}
           </span>
         </div>
 
@@ -198,54 +253,69 @@ export const RescuePlanView: React.FC = () => {
                   }`}
                 />
                 <div className="space-y-1">
-                  <span className={`text-[11px] font-bold uppercase tracking-wider ${
-                    isDark ? 'text-[#ffb780]' : 'text-[#D9826B]'
-                  }`}>
-                    {meal.mealType}
-                  </span>
-                  <h4 className={`font-display text-base font-bold transition-colors ${
-                    isDark ? 'text-white hover:text-[#a1e3f9]' : 'text-[#24332D] hover:text-[#557A62]'
-                  }`}>
-                    {meal.title}
-                  </h4>
-                  <p className={`text-xs line-clamp-1 ${isDark ? 'text-[#8e989b]' : 'text-[#68736D]'}`}>
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded uppercase tracking-wider ${
+                        meal.mealType === 'Breakfast'
+                          ? isDark
+                            ? 'bg-[#a1e3f9]/20 text-[#a1e3f9]'
+                            : 'bg-[#8EC5D6]/25 text-[#2C5768]'
+                          : meal.mealType === 'Lunch'
+                          ? isDark
+                            ? 'bg-emerald-500/20 text-emerald-300'
+                            : 'bg-[#6FAF8F]/20 text-[#43634F]'
+                          : isDark
+                          ? 'bg-[#ffb780]/20 text-[#ffb780]'
+                          : 'bg-[#F2B49F]/35 text-[#B8573E]'
+                      }`}
+                    >
+                      {meal.mealType}
+                    </span>
+                    <h4
+                      className={`font-display text-sm md:text-base font-bold transition-colors ${
+                        isDark ? 'text-white hover:text-[#a1e3f9]' : 'text-[#24332D] hover:text-[#557A62]'
+                      }`}
+                    >
+                      {meal.title}
+                    </h4>
+                  </div>
+                  <p className={`text-xs ${isDark ? 'text-[#8e989b]' : 'text-[#68736D]'}`}>
                     {meal.subtitle}
                   </p>
 
                   <div className="flex flex-wrap gap-1.5 pt-1">
-                    {meal.rescuedIngredients.map((ing, i) => (
+                    {meal.rescuedIngredients.map((item, idx) => (
                       <span
-                        key={i}
-                        className={`text-[10px] px-2 py-0.5 rounded font-mono font-medium ${
-                          ing.status === 'critical'
+                        key={idx}
+                        className={`text-[10px] font-medium px-2 py-0.5 rounded-full border ${
+                          item.status === 'critical'
                             ? isDark
-                              ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
-                              : 'bg-[#F2B49F]/30 text-[#B8573E] border border-[#F2B49F]/50'
+                              ? 'bg-rose-500/20 text-rose-300 border-rose-500/40'
+                              : 'bg-[#D9826B]/20 text-[#D9826B] border-[#D9826B]/40'
                             : isDark
-                            ? 'bg-[#ffb780]/15 text-[#ffb780] border border-[#ffb780]/20'
-                            : 'bg-[#F5D98B]/30 text-[#8C671C] border border-[#F5D98B]/50'
+                            ? 'bg-[#ffb780]/20 text-[#ffb780] border-[#ffb780]/40'
+                            : 'bg-[#F5D98B]/35 text-[#8C671C] border-[#D5A84C]/40'
                         }`}
                       >
-                        Uses: {ing.name}
+                        {item.name}
                       </span>
                     ))}
                   </div>
                 </div>
               </div>
 
-              <div className="w-full md:w-auto flex md:flex-col sm:flex-row flex-col gap-2 shrink-0">
-                <button
-                  onClick={() => handleOpenRecipe(meal.recipeId)}
-                  className={`px-4 py-2 rounded-xl text-xs font-semibold border transition-all flex items-center justify-center gap-1 cursor-pointer shadow-sm ${
-                    isDark
-                      ? 'bg-[#232b2e] hover:bg-[#a1e3f9] hover:text-[#003642] text-white border-white/10'
-                      : 'bg-[#F7F5EF] hover:bg-[#557A62] hover:text-white text-[#24332D] border-[#E4DED2]'
-                  }`}
-                >
-                  <span>View Recipe</span>
-                  <ChevronRight className="w-3.5 h-3.5" />
-                </button>
-              </div>
+              <button
+                type="button"
+                onClick={() => handleOpenRecipe(meal.recipeId)}
+                className={`w-full md:w-auto px-4 py-2.5 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition-all shadow-sm cursor-pointer shrink-0 ${
+                  isDark
+                    ? 'bg-[#252f33] hover:bg-[#a1e3f9] text-[#a1e3f9] hover:text-[#003642]'
+                    : 'bg-[#F7F5EF] hover:bg-[#557A62] text-[#24332D] hover:text-white border border-[#E4DED2]'
+                }`}
+              >
+                <span>View Cooking Steps</span>
+                <ChevronRight className="w-3.5 h-3.5" />
+              </button>
             </div>
           ))}
         </div>

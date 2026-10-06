@@ -15,6 +15,7 @@ import { useKitchen } from '../context/KitchenContext';
 import { Recipe } from '../types';
 import { matchRecipesWithInput, matchRecipesWithInventory, RecipeMatchResult } from '../data/recipeMatching';
 import { extractIngredientsFromSentence, getIngredientDisplayName } from '../data/ingredientNormalization';
+import { getCanonicalImageForRecipe } from '../data/canonicalRecipes';
 
 export const RecipeHubView: React.FC = () => {
   const {
@@ -105,13 +106,14 @@ export const RecipeHubView: React.FC = () => {
       if (Array.isArray(data.recipes) && data.recipes.length > 0) {
         setAiGeneratedRecipes(data.recipes);
         setGenerationSource(data.source === 'gemini-ai' ? 'Gemini AI Model' : 'Smart Shelf Culinary Engine');
-        setToastMessage(`Generated ${data.recipes.length} custom recipes for your ingredients!`);
+        setToastMessage(`Found ${data.recipes.length} verified canonical recipes!`);
       } else {
-        setToastMessage('Could not generate custom recipes. Showing catalog matches.');
+        setAiGeneratedRecipes([]);
+        setToastMessage(data.message || "I couldn't find a verified recipe matching your ingredients.");
       }
     } catch (err: any) {
       console.warn('AI recipe generation error, showing catalog fallback:', err);
-      setToastMessage('AI service busy. Displaying closest matching recipes.');
+      setToastMessage("I couldn't find a verified recipe matching your ingredients.");
     } finally {
       setIsGenerating(false);
     }
@@ -171,7 +173,7 @@ export const RecipeHubView: React.FC = () => {
             className="relative h-48 w-full overflow-hidden cursor-pointer"
           >
             <img
-              src={recipe.image}
+              src={recipe.image || getCanonicalImageForRecipe(recipe.title)}
               alt={recipe.title}
               referrerPolicy="no-referrer"
               className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
@@ -516,6 +518,23 @@ export const RecipeHubView: React.FC = () => {
         </div>
       )}
 
+      {/* ZERO RESULTS VERIFIED BANNER (Rule 12) */}
+      {searchQuery.trim() && canMakeNowList.length === 0 && almostReadyList.length === 0 && aiGeneratedRecipes.length === 0 && !isGenerating && (
+        <div className={`p-8 rounded-3xl border text-center space-y-3 shadow-sm ${
+          isDark ? 'bg-[#1c2529] border-white/10' : 'bg-[#FFFFFF] border-[#E4DED2]'
+        }`}>
+          <div className="w-12 h-12 rounded-2xl mx-auto flex items-center justify-center bg-amber-500/10 text-amber-500">
+            <BookOpen className="w-6 h-6" />
+          </div>
+          <h3 className={`font-display text-base font-bold ${isDark ? 'text-white' : 'text-[#24332D]'}`}>
+            I couldn't find a verified recipe matching your ingredients.
+          </h3>
+          <p className={`text-xs max-w-md mx-auto ${isDark ? 'text-[#8e989b]' : 'text-[#68736D]'}`}>
+            We strictly enforce a canonical verified recipe database and do not invent fake recipes. Try searching for recognized ingredients like Maggi, chicken, egg, tomato, or rice.
+          </p>
+        </div>
+      )}
+
       {/* 2. DYNAMICALLY GENERATED AI RECIPES SECTION */}
       {aiGeneratedRecipes.length > 0 && !isGenerating && (
         <div className="space-y-4">
@@ -573,7 +592,7 @@ export const RecipeHubView: React.FC = () => {
                     className="relative h-44 w-full overflow-hidden cursor-pointer"
                   >
                     <img
-                      src={recipe.image}
+                      src={recipe.image || getCanonicalImageForRecipe(recipe.title)}
                       alt={recipe.title}
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                     />

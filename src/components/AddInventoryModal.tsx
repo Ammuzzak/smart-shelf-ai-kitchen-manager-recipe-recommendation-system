@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Sparkles, Plus, Minus, Camera, Check } from 'lucide-react';
+import { X, Sparkles, Plus, Minus, Check } from 'lucide-react';
 import { useKitchen } from '../context/KitchenContext';
 import { FoodCategory } from '../types';
 
@@ -85,7 +85,7 @@ export const AddInventoryModal: React.FC = () => {
               Add Food Item
             </h2>
             <p className={`text-xs ${isDark ? 'text-[#8e989b]' : 'text-[#68736D]'}`}>
-              Add fresh items or scan a receipt
+              Add fresh items to your kitchen storage
             </p>
           </div>
           <button
@@ -298,34 +298,13 @@ export const AddInventoryModal: React.FC = () => {
         </p>
 
         {/* Bottom Actions */}
-        <div className={`grid grid-cols-2 gap-2.5 pt-2 border-t ${
+        <div className={`pt-2 border-t ${
           isDark ? 'border-white/10' : 'border-[#E4DED2]'
         }`}>
           <button
             type="button"
-            onClick={() => {
-              setName('Country Tomatoes');
-              setCategory('Produce');
-              setQuantity(1);
-              setUnit('kg');
-              setLocation('Vegetable Drawer');
-              setExpiryDays(4);
-              setToastMessage('Scanned receipt! Detected 1kg Country Tomatoes.');
-            }}
-            className={`py-2.5 px-3 rounded-xl border font-semibold text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
-              isDark
-                ? 'bg-[#232b2e] hover:bg-[#2c363a] text-white border-white/10'
-                : 'bg-[#F7F5EF] hover:bg-[#EFE9DE] text-[#24332D] border-[#E4DED2]'
-            }`}
-          >
-            <Camera className={`w-3.5 h-3.5 ${isDark ? 'text-[#ffb780]' : 'text-[#D9826B]'}`} />
-            <span>Scan Receipt</span>
-          </button>
-
-          <button
-            type="button"
             onClick={handleSave}
-            className={`py-2.5 px-3 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition-all shadow-md cursor-pointer ${
+            className={`w-full py-3 px-4 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all shadow-md cursor-pointer hover:-translate-y-0.5 ${
               isDark
                 ? 'bg-[#a1e3f9] hover:bg-[#c2effc] text-[#003642] shadow-[#a1e3f9]/15'
                 : 'bg-[#557A62] hover:bg-[#43634F] text-white shadow-[#557A62]/15'

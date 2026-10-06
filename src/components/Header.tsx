@@ -5,9 +5,11 @@ import {
   ChevronRight,
   Sun,
   Moon,
+  User,
 } from 'lucide-react';
 import { useKitchen } from '../context/KitchenContext';
 import { matchRecipesWithInput } from '../data/recipeMatching';
+import { AccountMenuDropdown } from './AccountMenuDropdown';
 
 export const Header: React.FC = () => {
   const {
@@ -15,6 +17,7 @@ export const Header: React.FC = () => {
     setActiveScreen,
     setIsHeyChefOpen,
     setIsAddModalOpen,
+    currentUser,
     toastMessage,
     setToastMessage,
     userSettings,
@@ -34,6 +37,7 @@ export const Header: React.FC = () => {
   const isDark = theme === 'dark';
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
 
   const unreadCount = notifications.filter((n) => !n.read).length;
 
@@ -399,24 +403,59 @@ export const Header: React.FC = () => {
             <span>+ Add Item</span>
           </button>
 
-          {/* User Profile Pill */}
-          <button
-            onClick={() => setActiveScreen('profile')}
-            className={`flex items-center gap-2 p-1.5 pr-3 rounded-full border transition-all text-xs cursor-pointer shadow-sm ${
-              isDark
-                ? 'bg-[#1c2529] border-white/10 hover:border-[#a1e3f9]/40 text-white'
-                : 'bg-[#FFFFFF] border-[#E4DED2] hover:border-[#557A62]/40 text-[#24332D]'
-            }`}
-          >
-            <div
-              className={`w-6 h-6 rounded-full flex items-center justify-center font-bold text-[11px] text-white ${
-                isDark ? 'bg-[#004f5e]' : 'bg-[#D9826B]'
+          {/* User Account / Profile Pill & Interactive Menu */}
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => {
+                setIsAccountMenuOpen((prev) => !prev);
+                setIsNotificationsOpen(false);
+              }}
+              title="Open Kitchen Account & Settings"
+              aria-expanded={isAccountMenuOpen}
+              className={`flex items-center gap-2 p-1.5 pr-3 rounded-full border transition-all text-xs cursor-pointer shadow-sm hover:scale-[1.02] ${
+                isAccountMenuOpen
+                  ? isDark
+                    ? 'bg-[#1c2529] border-[#a1e3f9] text-white ring-2 ring-[#a1e3f9]/20'
+                    : 'bg-[#FFFFFF] border-[#557A62] text-[#24332D] ring-2 ring-[#557A62]/20'
+                  : isDark
+                  ? 'bg-[#1c2529] border-white/10 hover:border-[#a1e3f9]/40 text-white'
+                  : 'bg-[#FFFFFF] border-[#E4DED2] hover:border-[#557A62]/40 text-[#24332D]'
               }`}
             >
-              G
-            </div>
-            <span className="hidden md:inline font-semibold text-xs">{userSettings.name}</span>
-          </button>
+              <div
+                className={`w-6 h-6 rounded-full flex items-center justify-center font-bold text-[11px] text-white ${
+                  currentUser?.isGuest
+                    ? 'bg-amber-600'
+                    : isDark
+                    ? 'bg-[#005a6b] text-[#a1e3f9]'
+                    : 'bg-[#557A62]'
+                }`}
+              >
+                <User className="w-3.5 h-3.5" />
+              </div>
+              <span className="hidden md:inline font-semibold text-xs truncate max-w-[120px]">
+                {currentUser?.name || 'Home Cook'}
+              </span>
+              <span
+                className={`text-[9px] px-1.5 py-0.2 rounded-full font-mono font-bold ${
+                  currentUser?.isGuest
+                    ? 'bg-amber-500/20 text-amber-400'
+                    : isDark
+                    ? 'bg-[#a1e3f9]/20 text-[#a1e3f9]'
+                    : 'bg-[#6FAF8F]/20 text-[#43634F]'
+                }`}
+              >
+                {currentUser?.isGuest ? 'Guest' : 'User'}
+              </span>
+            </button>
+
+            <AccountMenuDropdown
+              isOpen={isAccountMenuOpen}
+              onClose={() => setIsAccountMenuOpen(false)}
+              positionClasses="right-0 top-full mt-2 w-72 sm:w-80"
+            />
+          </div>
         </div>
       </div>
 

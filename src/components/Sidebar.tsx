@@ -1,20 +1,20 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   LayoutDashboard,
   Boxes,
-  ShoppingCart,
   CalendarCheck,
   UtensilsCrossed,
-  ChefHat,
   BarChart3,
   Users,
   UserCheck,
-  Mic,
-  Thermometer,
+  ShoppingCart,
   PlusCircle,
+  Mic,
+  User,
 } from 'lucide-react';
 import { useKitchen } from '../context/KitchenContext';
 import { ActiveScreen } from '../types';
+import { AccountMenuDropdown } from './AccountMenuDropdown';
 
 export const Sidebar: React.FC = () => {
   const {
@@ -22,13 +22,14 @@ export const Sidebar: React.FC = () => {
     setActiveScreen,
     setIsHeyChefOpen,
     setIsAddModalOpen,
+    currentUser,
     chefTimerSeconds,
-    setToastMessage,
     shoppingItems,
     theme,
   } = useKitchen();
 
   const isDark = theme === 'dark';
+  const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
 
   const navItems: Array<{ id: ActiveScreen; label: string; icon: React.ComponentType<{ className?: string }> }> = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -41,7 +42,7 @@ export const Sidebar: React.FC = () => {
     { id: 'profile', label: 'Kitchen Profile', icon: UserCheck },
   ];
 
-  const pendingShoppingCount = shoppingItems.filter((s) => !s.completed).length;
+  const pendingShoppingCount = shoppingItems.filter((s: any) => !s.checked && !s.completed).length;
 
   return (
     <aside className={`hidden lg:flex flex-col w-64 xl:w-72 shrink-0 h-screen sticky top-0 p-4 justify-between z-30 theme-transition ${
@@ -58,48 +59,81 @@ export const Sidebar: React.FC = () => {
                 ? 'bg-[#a1e3f9]/15 border border-[#a1e3f9]/30 text-[#a1e3f9]'
                 : 'bg-[#6FAF8F] text-white shadow-[#6FAF8F]/30'
             }`}>
-              <Boxes className="w-5 h-5" />
+              <span className="font-display font-black text-xl">S</span>
             </div>
             <div>
-              <div className="flex items-center gap-1.5">
-                <span className={`font-display font-extrabold text-sm tracking-wider ${isDark ? 'text-white' : 'text-[#24332D]'}`}>
-                  SMART SHELF
-                </span>
-                <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-mono font-bold ${
-                  isDark ? 'bg-white/10 text-[#a1e3f9]' : 'bg-[#6FAF8F]/15 text-[#557A62]'
-                }`}>
-                  v2.4
-                </span>
-              </div>
-              <p className={`text-[11px] font-medium ${isDark ? 'text-[#8e989b]' : 'text-[#68736D]'}`}>
-                {isDark ? 'AI Kitchen Assistant' : 'Cozy Smart Kitchen'}
+              <h1 className={`font-display text-base font-extrabold tracking-tight ${isDark ? 'text-white' : 'text-[#24332D]'}`}>
+                Smart Shelf
+              </h1>
+              <p className={`text-[10px] font-mono tracking-wider uppercase font-semibold ${
+                isDark ? 'text-[#a1e3f9]' : 'text-[#557A62]'
+              }`}>
+                Kitchen OS
               </p>
             </div>
           </div>
         </div>
 
-        {/* Ambient Sensor Dock */}
-        <button
-          onClick={() => setToastMessage('Kitchen Climate: 22.4°C • Humidity 48% (Optimal for Food Storage)')}
-          className={`w-full p-2.5 rounded-2xl border mb-4 flex items-center justify-between text-xs transition-all text-left cursor-pointer ${
-            isDark
-              ? 'bg-[#1c2529] hover:bg-[#252f33] border-white/5 text-white'
-              : 'bg-[#F7F5EF] hover:bg-[#EFE9DE] border-[#E4DED2] text-[#24332D]'
-          }`}
-          title="Click to view sensor telemetry"
-        >
-          <div className="flex items-center gap-2">
-            <Thermometer className={`w-4 h-4 ${isDark ? 'text-[#ffb780]' : 'text-[#D9826B]'}`} />
-            <span className="font-semibold">22.4°C</span>
+        {/* User Account Switcher Strip */}
+        <div className="relative mb-3">
+          <div
+            onClick={() => setIsAccountMenuOpen((prev) => !prev)}
+            className={`p-2.5 rounded-2xl border flex items-center justify-between transition-all cursor-pointer shadow-sm hover:scale-[1.01] ${
+              isAccountMenuOpen
+                ? isDark
+                  ? 'bg-[#182327] border-[#a1e3f9] ring-2 ring-[#a1e3f9]/20'
+                  : 'bg-[#F7F5EF] border-[#557A62] ring-2 ring-[#557A62]/20'
+                : isDark
+                ? 'bg-[#182327] hover:bg-[#1f2d32] border-white/10'
+                : 'bg-[#F7F5EF] hover:bg-[#EFE9DE] border-[#E4DED2]'
+            }`}
+            title="Open Kitchen Account & Settings"
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                setIsAccountMenuOpen((prev) => !prev);
+              }
+            }}
+          >
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div
+                className={`w-7 h-7 rounded-xl flex items-center justify-center text-xs font-bold text-white shrink-0 ${
+                  currentUser?.isGuest
+                    ? 'bg-amber-600'
+                    : isDark
+                    ? 'bg-[#005a6b] text-[#a1e3f9]'
+                    : 'bg-[#557A62]'
+                }`}
+              >
+                <User className="w-3.5 h-3.5" />
+              </div>
+              <div className="min-w-0">
+                <p className={`text-xs font-bold truncate ${isDark ? 'text-white' : 'text-[#24332D]'}`}>
+                  {currentUser?.name || 'Home Cook'}
+                </p>
+                <p className={`text-[10px] truncate ${isDark ? 'text-[#8e989b]' : 'text-[#68736D]'}`}>
+                  {currentUser?.isGuest ? 'Guest Kitchen' : 'Isolated Account'}
+                </p>
+              </div>
+            </div>
+            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+              currentUser?.isGuest
+                ? 'bg-amber-500/20 text-amber-400'
+                : isDark
+                ? 'bg-[#a1e3f9]/20 text-[#a1e3f9]'
+                : 'bg-[#6FAF8F]/20 text-[#43634F]'
+            }`}>
+              Account
+            </span>
           </div>
-          <span className={`text-[11px] px-2 py-0.5 rounded-full font-semibold ${
-            isDark
-              ? 'bg-emerald-500/15 text-emerald-400'
-              : 'bg-[#6FAF8F]/20 text-[#557A62]'
-          }`}>
-            48% Optimal
-          </span>
-        </button>
+
+          <AccountMenuDropdown
+            isOpen={isAccountMenuOpen}
+            onClose={() => setIsAccountMenuOpen(false)}
+            positionClasses="left-0 top-full mt-2 w-72"
+          />
+        </div>
 
         {/* Navigation Items */}
         <nav className="space-y-1">
@@ -153,14 +187,14 @@ export const Sidebar: React.FC = () => {
       <div className={`space-y-2.5 pt-3 border-t ${isDark ? 'border-white/10' : 'border-[#E4DED2]'}`}>
         <button
           onClick={() => setIsAddModalOpen(true)}
-          className={`w-full flex items-center justify-center gap-2 py-2.5 px-3 rounded-2xl text-xs font-bold transition-all shadow-sm cursor-pointer hover:-translate-y-0.5 ${
+          className={`w-full flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs font-bold transition-all shadow-sm cursor-pointer hover:-translate-y-0.5 ${
             isDark
-              ? 'bg-[#1c2529] hover:bg-[#252f33] border border-white/10 text-white'
+              ? 'bg-[#a1e3f9] hover:bg-[#c2effc] text-[#003642]'
               : 'bg-[#557A62] hover:bg-[#43634F] text-white'
           }`}
         >
-          <PlusCircle className={`w-4 h-4 ${isDark ? 'text-[#a1e3f9]' : 'text-white'}`} />
-          <span>+ Add Food</span>
+          <PlusCircle className="w-4 h-4" />
+          <span>Add Food Item</span>
         </button>
 
         <button

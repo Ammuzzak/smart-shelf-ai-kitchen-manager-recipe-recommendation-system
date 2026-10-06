@@ -6,3 +6,12 @@ coverage/
 *.log
 .env*
 !.env.example
+
+# Runtime user accounts, sessions & dynamic storage
+data/
+data/sessions.json
+data/users.json
+data/userdata/
+sessions.json
+users.json
+*.json.bak

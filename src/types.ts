@@ -11,22 +11,66 @@ export type FoodCategory =
   | 'Sauces & Spreads'
   | 'Condiments';
 
+export type InventoryItemSource = 'User entered' | 'AI suggested' | 'Sample pantry';
+
 export interface InventoryItem {
   id: string;
+  userId: string;
   name: string;
   category: FoodCategory;
   quantity: number;
   unit: string;
-  location: string;
+  minimumQuantity: number;
   expiryDate: string; // YYYY-MM-DD
-  purchaseDate: string;
-  daysLeft: number;
-  atRisk: boolean;
-  urgencyStatus: 'critical' | 'urgent' | 'warning' | 'optimal';
+  addedDate: string; // YYYY-MM-DD
+  location: string;
+  source: InventoryItemSource;
+  notes?: string;
+  purchaseDate?: string;
+  daysLeft?: number;
+  atRisk?: boolean;
+  urgencyStatus?: 'critical' | 'urgent' | 'warning' | 'optimal' | 'expired';
   usedAmountNote?: string;
   caloriesApprox?: number;
   costEstimate?: number;
-  minQuantity?: number;
+}
+
+export type WasteReason = 'Expired' | 'Spoiled' | 'Overcooked' | 'Excess preparation' | 'Other';
+
+export interface FoodWasteRecord {
+  id: string;
+  userId: string;
+  inventoryItemId?: string;
+  itemName: string;
+  quantity: number;
+  unit: string;
+  reason: WasteReason;
+  wastedAt: string; // YYYY-MM-DD
+  estimatedLossInr: number;
+  category?: FoodCategory;
+  notes?: string;
+}
+
+export interface AuthUser {
+  id: string;
+  name: string;
+  email: string;
+  isGuest: boolean;
+  createdAt: string;
+  avatar?: string;
+}
+
+export interface DerivedKitchenAlert {
+  id: string;
+  type: 'expired' | 'expiring_soon' | 'low_stock';
+  title: string;
+  message: string;
+  time: string;
+  itemId: string;
+  itemName: string;
+  severity: 'critical' | 'warning' | 'info';
+  source: 'Calculated from inventory';
+  linkScreen: 'inventory' | 'shopping-list' | 'rescue';
 }
 
 export interface RecipeStep {
@@ -67,7 +111,7 @@ export interface Recipe {
   cuisine: string;
   category: 'Breakfast' | 'Lunch' | 'Dinner' | 'Snack' | 'Side';
   image: string;
-  atRiskIngredients: Array<{
+  atRiskIngredients?: Array<{
     name: string;
     urgency: string;
     status: 'critical' | 'urgent' | 'warning' | 'optimal';
