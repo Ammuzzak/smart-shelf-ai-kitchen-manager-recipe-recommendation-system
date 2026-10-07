@@ -76,37 +76,118 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
 
     setIsLoading(true);
 
-    try {
-      const endpoint = mode === 'signup' ? '/api/auth/signup' : '/api/auth/login';
-      const payload =
-        mode === 'signup'
-          ? { name: trimmedName, email: trimmedEmail, password, confirmPassword }
-          : { email: trimmedEmail, password };
+   try {
+  const accountsKey = 'smart_shelf_local_accounts';
 
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
+  type LocalAccount = {
+    id: string;
+    name: string;
+    email: string;
+    passwordHash: string;
+    isGuest: boolean;
+    createdAt: string;
+    avatar?: string;
+  };
 
-      const data = await response.json();
+  const hashPassword = async (value: string) => {
+    const data = new TextEncoder().encode(value);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
 
-      if (!response.ok) {
-        throw new Error(data.error || 'Authentication failed. Please check your credentials.');
-      }
+    return Array.from(new Uint8Array(hashBuffer))
+      .map((byte) => byte.toString(16).padStart(2, '0'))
+      .join('');
+  };
 
-      // Successful authentication
-      setCurrentUserWithToken(data.user, data.token);
-      setToastMessage(mode === 'signup' ? `Welcome to Smart Shelf, ${data.user.name}!` : `Welcome back, ${data.user.name}!`);
+  const storedAccounts = localStorage.getItem(accountsKey);
 
-      if (onLoginSuccess) {
-        onLoginSuccess();
-      }
-    } catch (err: any) {
-      setError(err.message || 'An unexpected error occurred. Please try again.');
-    } finally {
-      setIsLoading(false);
+  let accounts: LocalAccount[] = [];
+
+  try {
+    accounts = storedAccounts ? JSON.parse(storedAccounts) : [];
+  } catch {
+    accounts = [];
+  }
+
+  const passwordHash = await hashPassword(password);
+  const existingAccount = accounts.find(
+    (account) => account.email === trimmedEmail
+  );
+
+  if (mode === 'signup') {
+    if (existingAccount) {
+      throw new Error(
+        'An account with this email already exists. Please sign in instead.'
+      );
     }
+
+    const newAccount: LocalAccount = {
+      id: crypto.randomUUID(),
+      name: trimmedName,
+      email: trimmedEmail,
+      passwordHash,
+      isGuest: false,
+      createdAt: new Date().toISOString(),
+    };
+
+    accounts.push(newAccount);
+    localStorage.setItem(accountsKey, JSON.stringify(accounts));
+
+    const user: AuthUser = {
+      id: newAccount.id,
+      name: newAccount.name,
+      email: newAccount.email,
+      isGuest: false,
+      createdAt: newAccount.createdAt,
+    };
+
+    const token = crypto.randomUUID();
+
+    setCurrentUserWithToken(user, token);
+
+    setToastMessage(`Welcome to Smart Shelf, ${user.name}!`);
+
+    if (onLoginSuccess) {
+      onLoginSuccess();
+    }
+
+    return;
+  }
+
+  if (!existingAccount) {
+    throw new Error(
+      'No account found with this email. Please create an account first.'
+    );
+  }
+
+  if (existingAccount.passwordHash !== passwordHash) {
+    throw new Error('Incorrect password. Please try again.');
+  }
+
+  const user: AuthUser = {
+    id: existingAccount.id,
+    name: existingAccount.name,
+    email: existingAccount.email,
+    isGuest: existingAccount.isGuest,
+    createdAt: existingAccount.createdAt,
+    avatar: existingAccount.avatar,
+  };
+
+  const token = crypto.randomUUID();
+
+  setCurrentUserWithToken(user, token);
+
+  setToastMessage(`Welcome back, ${user.name}!`);
+
+  if (onLoginSuccess) {
+    onLoginSuccess();
+  }
+} catch (err: any) {
+  setError(
+    err.message || 'An unexpected error occurred. Please try again.'
+  );
+} finally {
+  setIsLoading(false);
+}
   };
 
   return (

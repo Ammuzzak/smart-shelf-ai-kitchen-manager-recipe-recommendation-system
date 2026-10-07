@@ -195,135 +195,107 @@ export const KitchenProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setTheme(next);
   };
 
-  // User Account Architecture & Session Isolation
-  const [currentUser, setCurrentUser] = useState<AuthUser | null>(() => {
-    return loadStorage<AuthUser | null>('smart_shelf_active_user', null);
-  });
+// User Account Architecture & Session Isolation
+const [currentUser, setCurrentUser] = useState<AuthUser | null>(() => {
+  return loadStorage<AuthUser | null>('smart_shelf_active_user', null);
+});
 
-  const [authToken, setAuthToken] = useState<string | null>(() => {
-    try {
-      return localStorage.getItem('smart_shelf_auth_token');
-    } catch {
-      return null;
-    }
-  });
+const [authToken, setAuthToken] = useState<string | null>(() => {
+  try {
+    return localStorage.getItem('smart_shelf_auth_token');
+  } catch {
+    return null;
+  }
+});
 
-  const [isAuthChecking, setIsAuthChecking] = useState<boolean>(() => {
-    try {
-      return Boolean(localStorage.getItem('smart_shelf_auth_token'));
-    } catch {
-      return false;
-    }
-  });
+// GitHub Pages uses local browser authentication.
+// No server/API authentication is required.
+const [isAuthChecking, setIsAuthChecking] = useState(false);
 
-  // Validate server session token on app initialization
-  useEffect(() => {
-    if (!authToken) {
-      setIsAuthChecking(false);
-      return;
-    }
+// CANONICAL INVENTORY: Loaded strictly for current user
+const [inventory, setInventory] = useState<InventoryItem[]>(() => {
+  if (!currentUser) return [];
+  return loadStorage<InventoryItem[]>(
+    `smart_shelf_inventory_${currentUser.id}`,
+    []
+  );
+});
 
-    let isMounted = true;
-    fetch('/api/auth/me', {
-      headers: {
-        Authorization: `Bearer ${authToken}`,
-      },
-    })
-      .then((res) => {
-        if (!res.ok) {
-          throw new Error('Session invalid');
-        }
-        return res.json();
-      })
-      .then((data) => {
-        if (isMounted && data.user) {
-          setCurrentUser(data.user);
-          localStorage.setItem('smart_shelf_active_user', JSON.stringify(data.user));
-        }
-      })
-      .catch(() => {
-        if (isMounted) {
-          setCurrentUser(null);
-          setAuthToken(null);
-          try {
-            localStorage.removeItem('smart_shelf_active_user');
-            localStorage.removeItem('smart_shelf_auth_token');
-          } catch (e) {
-            console.error(e);
-          }
-        }
-      })
-      .finally(() => {
-        if (isMounted) {
-          setIsAuthChecking(false);
-        }
-      });
+// CANONICAL FOOD WASTE RECORDS: Loaded strictly for current user
+const [wasteRecords, setWasteRecords] = useState<FoodWasteRecord[]>(() => {
+  if (!currentUser) return [];
+  return loadStorage<FoodWasteRecord[]>(
+    `smart_shelf_waste_${currentUser.id}`,
+    []
+  );
+});
 
-    return () => {
-      isMounted = false;
-    };
-  }, [authToken]);
+// CANONICAL SHOPPING LIST: Loaded strictly for current user
+const [shoppingItems, setShoppingItems] = useState<ShoppingItem[]>(() => {
+  if (!currentUser) return [];
+  return loadStorage<ShoppingItem[]>(
+    `smart_shelf_shopping_${currentUser.id}`,
+    []
+  );
+});
 
-  // CANONICAL INVENTORY: Loaded strictly for current user
-  const [inventory, setInventory] = useState<InventoryItem[]>(() => {
-    if (!currentUser) return [];
-    const userInvKey = `smart_shelf_inventory_${currentUser.id}`;
-    return loadStorage<InventoryItem[]>(userInvKey, []);
-  });
-
-  // CANONICAL FOOD WASTE RECORDS: Loaded strictly for current user
-  const [wasteRecords, setWasteRecords] = useState<FoodWasteRecord[]>(() => {
-    if (!currentUser) return [];
-    const userWasteKey = `smart_shelf_waste_${currentUser.id}`;
-    return loadStorage<FoodWasteRecord[]>(userWasteKey, []);
-  });
-
-  // CANONICAL SHOPPING LIST: Loaded strictly for current user
-  const [shoppingItems, setShoppingItems] = useState<ShoppingItem[]>(() => {
-    if (!currentUser) return [];
-    const userShopKey = `smart_shelf_shopping_${currentUser.id}`;
-    return loadStorage<ShoppingItem[]>(userShopKey, []);
-  });
-
-  // Sets user after successful login or signup and hydrates their isolated kitchen data
-  const setCurrentUserWithToken = useCallback((user: AuthUser, token: string) => {
+// Sets the active local user after login/signup
+const setCurrentUserWithToken = useCallback(
+  (user: AuthUser, token: string) => {
     setCurrentUser(user);
     setAuthToken(token);
+
     try {
-      localStorage.setItem('smart_shelf_active_user', JSON.stringify(user));
+      localStorage.setItem(
+        'smart_shelf_active_user',
+        JSON.stringify(user)
+      );
       localStorage.setItem('smart_shelf_auth_token', token);
     } catch (e) {
-      console.error(e);
+      console.error('Could not save local session:', e);
     }
-    const newInv = loadStorage<InventoryItem[]>(`smart_shelf_inventory_${user.id}`, []);
-    const newWaste = loadStorage<FoodWasteRecord[]>(`smart_shelf_waste_${user.id}`, []);
-    const newShop = loadStorage<ShoppingItem[]>(`smart_shelf_shopping_${user.id}`, []);
-    setInventory(newInv);
-    setWasteRecords(newWaste);
-    setShoppingItems(newShop);
-  }, []);
 
-  // Logout handler: clears session and resets all user states
-  const logout = useCallback(() => {
-    if (authToken) {
-      fetch('/api/auth/logout', {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${authToken}` },
-      }).catch(() => {});
-    }
-    setCurrentUser(null);
-    setAuthToken(null);
-    try {
-      localStorage.removeItem('smart_shelf_active_user');
-      localStorage.removeItem('smart_shelf_auth_token');
-    } catch (e) {
-      console.error(e);
-    }
-    setInventory([]);
-    setWasteRecords([]);
-    setShoppingItems([]);
-    setActiveScreen('dashboard');
-  }, [authToken]);
+    setInventory(
+      loadStorage<InventoryItem[]>(
+        `smart_shelf_inventory_${user.id}`,
+        []
+      )
+    );
+
+    setWasteRecords(
+      loadStorage<FoodWasteRecord[]>(
+        `smart_shelf_waste_${user.id}`,
+        []
+      )
+    );
+
+    setShoppingItems(
+      loadStorage<ShoppingItem[]>(
+        `smart_shelf_shopping_${user.id}`,
+        []
+      )
+    );
+  },
+  []
+);
+
+// Local logout — no server request
+const logout = useCallback(() => {
+  setCurrentUser(null);
+  setAuthToken(null);
+
+  try {
+    localStorage.removeItem('smart_shelf_active_user');
+    localStorage.removeItem('smart_shelf_auth_token');
+  } catch (e) {
+    console.error('Could not clear local session:', e);
+  }
+
+  setInventory([]);
+  setWasteRecords([]);
+  setShoppingItems([]);
+  setActiveScreen('dashboard');
+}, []);
 
   // Switch User handler: isolates all datasets by userId
   const switchUser = useCallback((newUser: AuthUser) => {

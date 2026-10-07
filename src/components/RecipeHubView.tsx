@@ -67,57 +67,91 @@ export const RecipeHubView: React.FC = () => {
   const almostReadyList = useMemo(() => filterList(splitResults.almostReady), [splitResults.almostReady, activeFilter]);
 
   // Trigger Dynamic AI Recipe Generation via Gemini
-  const handleGenerateWithAI = async (customIngredients?: string[]) => {
-    const rawInput = searchQuery.trim();
-    const ingredientsToUse = customIngredients && customIngredients.length > 0
+ // Trigger Dynamic AI Recipe Generation via Gemini
+const handleGenerateWithAI = async (customIngredients?: string[]) => {
+  const rawInput = searchQuery.trim();
+
+  const ingredientsToUse =
+    customIngredients && customIngredients.length > 0
       ? customIngredients
       : detectedIngredientsInQuery.length > 0
       ? detectedIngredientsInQuery
       : rawInput
       ? [rawInput]
-      : inventory.filter((i) => i.quantity > 0).map((i) => i.name);
+      : inventory
+          .filter((i) => i.quantity > 0)
+          .map((i) => i.name);
 
-    if (ingredientsToUse.length === 0) {
-      setToastMessage('Please enter at least one ingredient to generate recipes.');
+  if (ingredientsToUse.length === 0) {
+    setToastMessage('Please enter at least one ingredient to generate recipes.');
+    return;
+  }
+
+  setIsGenerating(true);
+  setAiGeneratedRecipes([]);
+  setGenerationSource(null);
+  setToastMessage('Smart Shelf is finding recipes from your ingredients...');
+
+  try {
+    const query = ingredientsToUse.join(', ');
+
+    const response = await fetch('/api/recipes/generate', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        ingredients: ingredientsToUse,
+        userInventory: inventory
+          .filter((i) => i.quantity > 0)
+          .map((i) => i.name),
+        cuisinePreference: 'Any',
+        dietaryPreference: 'Flexible',
+        searchQuery: query,
+      }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(
+        data?.message || 'Recipe generation failed. Please try again.'
+      );
+    }
+
+    const generatedRecipes = Array.isArray(data?.recipes)
+      ? data.recipes
+      : [];
+
+    if (generatedRecipes.length > 0) {
+      setAiGeneratedRecipes(generatedRecipes);
+      setGenerationSource(data?.source || 'Gemini AI');
+
+      setToastMessage(
+        `Found ${generatedRecipes.length} recipe${
+          generatedRecipes.length === 1 ? '' : 's'
+        } using your ingredients!`
+      );
+
       return;
     }
 
-    setIsGenerating(true);
-    setToastMessage('Gemini AI is crafting recipes with your ingredients...');
-
-    try {
-      const response = await fetch('/api/recipes/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ingredients: ingredientsToUse,
-          userInventory: inventory.map((i) => i.name),
-          cuisinePreference: activeFilter === 'All' ? 'Any' : activeFilter,
-          dietaryPreference: 'Vegetarian / Flexible',
-          searchQuery: rawInput,
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`Server returned ${response.status}`);
-      }
-
-      const data = await response.json();
-      if (Array.isArray(data.recipes) && data.recipes.length > 0) {
-        setAiGeneratedRecipes(data.recipes);
-        setGenerationSource(data.source === 'gemini-ai' ? 'Gemini AI Model' : 'Smart Shelf Culinary Engine');
-        setToastMessage(`Found ${data.recipes.length} verified canonical recipes!`);
-      } else {
-        setAiGeneratedRecipes([]);
-        setToastMessage(data.message || "I couldn't find a verified recipe matching your ingredients.");
-      }
-    } catch (err: any) {
-      console.warn('AI recipe generation error, showing catalog fallback:', err);
-      setToastMessage("I couldn't find a verified recipe matching your ingredients.");
-    } finally {
-      setIsGenerating(false);
-    }
-  };
+    setAiGeneratedRecipes([]);
+    setGenerationSource(data?.source || null);
+    setToastMessage(
+      "I couldn't find a recipe matching your ingredients right now."
+    );
+  } catch (err) {
+    console.warn('AI recipe generation error:', err);
+    setAiGeneratedRecipes([]);
+    setGenerationSource(null);
+    setToastMessage(
+      'Recipe generation is temporarily unavailable. Please try again.'
+    );
+  } finally {
+    setIsGenerating(false);
+  }
+};
 
   // Open recipe details in RecipeDetailModal
   const handleOpenRecipe = (recipe: Recipe) => {

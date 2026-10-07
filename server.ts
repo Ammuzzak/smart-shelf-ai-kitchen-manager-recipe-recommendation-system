@@ -338,16 +338,18 @@ User Question: "${userQuery || "What can I cook?"}"`;
 });
 
 // AI Recipe Generation Endpoint — Generates recipes dynamically from user ingredients
+// AI Recipe Generation Endpoint
+// Gemini dynamically creates recipes from the user's ingredients.
+// Maggi is the only protected canonical-recipe exception.
 app.post("/api/recipes/generate", async (req, res) => {
   const {
     ingredients = [],
     userInventory = [],
-    cuisinePreference = "All",
+    cuisinePreference = "Any",
     dietaryPreference = "Flexible",
     searchQuery = "",
   } = req.body;
 
-  // Natural language ingredient normalization (English, Tamil, Tanglish)
   const tamilToEnglishMap: Record<string, string> = {
     maggi: "maggi",
     maggie: "maggi",
@@ -355,7 +357,6 @@ app.post("/api/recipes/generate", async (req, res) => {
     maggis: "maggi",
     noodles: "maggi",
     "instant noodles": "maggi",
-    ramen: "maggi",
     thakkali: "tomato",
     thakkalipazham: "tomato",
     vengayam: "onion",
@@ -402,145 +403,328 @@ app.post("/api/recipes/generate", async (req, res) => {
     veggies: "vegetables",
     kaygari: "vegetables",
     cheese: "cheese",
-    paneer: "cheese",
+    paneer: "paneer",
   };
 
-  const normalizeToken = (token: string): string => {
-    const cleaned = token.toLowerCase().trim();
+  const normalizeToken = (value: string): string => {
+    const cleaned = value.toLowerCase().trim();
     return tamilToEnglishMap[cleaned] || cleaned;
   };
 
-  // Compile full list of user ingredients
-  let inputList: string[] = [];
-  if (Array.isArray(ingredients) && ingredients.length > 0) {
-    inputList = ingredients.map((i: any) => normalizeToken(String(i))).filter(Boolean);
-  } else if (typeof searchQuery === "string" && searchQuery.trim()) {
-    inputList = searchQuery
-      .replace(/^(i have|i got|we have|enkitta|en kitta|ennidam|use|with|make|cook|recipe for)s+/i, "")
-      .replace(/\s+(and|irukku|iruku|vechu|vachu|enna panna mudiyum|venum|sollu|epdi|seiya|how to|cook|make)\b/gi, ",")
-      .split(/[,+]/)
-      .map((s) => normalizeToken(s))
-      .filter(Boolean);
-  }
-
-  // Extract keywords directly from raw query
-  const rawQueryLower = (searchQuery || "").toLowerCase();
-  const searchKeywords: string[] = [];
-  if (rawQueryLower.includes("maggi") || rawQueryLower.includes("maggie") || rawQueryLower.includes("noodle")) {
-    searchKeywords.push("maggi");
-  }
-  if (rawQueryLower.includes("chicken") || rawQueryLower.includes("kozhi") || rawQueryLower.includes("koli")) {
-    searchKeywords.push("chicken");
-  }
-  if (rawQueryLower.includes("rice") || rawQueryLower.includes("biryani") || rawQueryLower.includes("briyani")) {
-    searchKeywords.push("rice");
-  }
-  if (rawQueryLower.includes("egg") || rawQueryLower.includes("muttai")) {
-    searchKeywords.push("egg");
-  }
-  if (rawQueryLower.includes("tomato") || rawQueryLower.includes("thakkali")) {
-    searchKeywords.push("tomato");
-  }
-  if (rawQueryLower.includes("vegetable") || rawQueryLower.includes("veggie")) {
-    searchKeywords.push("vegetables");
-  }
-  if (rawQueryLower.includes("cheese")) {
-    searchKeywords.push("cheese");
-  }
-  if (rawQueryLower.includes("garlic") || rawQueryLower.includes("poondu")) {
-    searchKeywords.push("garlic");
-  }
-
-  const allTargetTokens = Array.from(new Set([...inputList, ...searchKeywords]));
-
-  // User kitchen inventory ingredients
-  const inventoryTokens = Array.isArray(userInventory)
-    ? userInventory.map((item: any) => normalizeToken(typeof item === "string" ? item : item.name)).filter(Boolean)
+  const rawIngredients = Array.isArray(ingredients)
+    ? ingredients
     : [];
 
-  // Check if query expressed possession ("i have ...", "enkitta ... irukku", "with ...")
-  const hasPossessionIntent =
-    /^(i have|i got|we have|enkitta|en kitta|ennidam|use|with)\b/i.test(searchQuery || "") ||
-    (!/epdi|seiya|recipe|how to|venum|sollu|panna/i.test(searchQuery || "") && ingredients.length > 0);
+  const normalizedIngredients = rawIngredients
+    .map((item: any) =>
+      normalizeToken(
+        typeof item === "string"
+          ? item
+          : String(item?.name || "")
+      )
+    )
+    .filter(Boolean);
 
-  const declaredPossessed = hasPossessionIntent ? inputList : [];
-  const userPossessedSet = new Set([...inventoryTokens, ...declaredPossessed]);
+  const normalizedInventory = Array.isArray(userInventory)
+    ? userInventory
+        .map((item: any) =>
+          normalizeToken(
+            typeof item === "string"
+              ? item
+              : String(item?.name || "")
+          )
+        )
+        .filter(Boolean)
+    : [];
 
-  // CANONICAL SEARCH: Find matching recipes in CANONICAL_RECIPES
-  const candidateRecipes = CANONICAL_RECIPES.filter((recipe) => {
-    const req = (recipe.normalizedRequired || []).map((s) => s.toLowerCase());
-    const opt = (recipe.normalizedOptional || []).map((s) => s.toLowerCase());
-    const title = recipe.title.toLowerCase();
-    const aliases = (recipe.canonicalAliases || []).map((a) => a.toLowerCase());
+  const query = String(searchQuery || "").trim();
 
-    return allTargetTokens.some(
-      (token) =>
-        req.includes(token) ||
-        opt.includes(token) ||
-        title.includes(token) ||
-        aliases.some((a) => a.includes(token))
+  const combinedIngredients = Array.from(
+    new Set([
+      ...normalizedIngredients,
+      ...normalizedInventory,
+    ])
+  );
+
+  /*
+   * ------------------------------------------------------------
+   * MAGGI PROTECTION
+   * ------------------------------------------------------------
+   *
+   * If the user explicitly asks for Maggi/noodles, do NOT allow
+   * Gemini to invent recipe names.
+   *
+   * Only these five canonical recipes are allowed:
+   * Masala Maggi
+   * Vegetable Maggi
+   * Egg Maggi
+   * Cheese Maggi
+   * Spicy Garlic Maggi
+   */
+  const asksForMaggi =
+    combinedIngredients.includes("maggi") ||
+    /maggi|maggie|maggy|noodle|instant noodles/i.test(query);
+
+  if (asksForMaggi) {
+    const allowedMaggiTitles = [
+      "Masala Maggi",
+      "Vegetable Maggi",
+      "Egg Maggi",
+      "Cheese Maggi",
+      "Spicy Garlic Maggi",
+    ];
+
+    const maggiRecipes = CANONICAL_RECIPES.filter((recipe) =>
+      allowedMaggiTitles.includes(recipe.title)
     );
-  });
 
-  // RULE 12: NEVER HALLUCINATE A RECIPE TO AVOID SHOWING "NO RESULTS"
-  if (candidateRecipes.length === 0) {
+    const rankedMaggi = [...maggiRecipes].sort((a, b) => {
+      const aRequired = (a.normalizedRequired || []).map((x) =>
+        normalizeToken(x)
+      );
+      const bRequired = (b.normalizedRequired || []).map((x) =>
+        normalizeToken(x)
+      );
+
+      const aScore = aRequired.filter((x) =>
+        combinedIngredients.includes(x)
+      ).length;
+
+      const bScore = bRequired.filter((x) =>
+        combinedIngredients.includes(x)
+      ).length;
+
+      return bScore - aScore;
+    });
+
+    const selectedMaggi = rankedMaggi.slice(0, 5);
+
+    const formattedMaggi = selectedMaggi.map((recipe, index) => {
+      const ingredientsWithQuantities =
+        recipe.ingredientsWithQuantities || [];
+
+      const formattedIngredients =
+        ingredientsWithQuantities.map((item) => {
+          const token = normalizeToken(item.name);
+          const isAvailable =
+            combinedIngredients.includes(token);
+
+          return {
+            ...item,
+            isAvailable,
+          };
+        });
+
+      const required =
+        (recipe.normalizedRequired || []).map((x) =>
+          normalizeToken(x)
+        );
+
+      const availableRequired = required.filter((x) =>
+        combinedIngredients.includes(x)
+      ).length;
+
+      const matchPercentage =
+        required.length > 0
+          ? Math.round(
+              (availableRequired / required.length) * 100
+            )
+          : 100;
+
+      const missingIngredients = formattedIngredients
+        .filter((item) => !item.isAvailable)
+        .map(
+          (item) =>
+            `${item.name} (${item.quantity})`
+        );
+
+      return {
+        id: `maggi-ai-${recipe.id}-${index}`,
+        title: recipe.title,
+        subtitle: recipe.subtitle,
+        prepTime: recipe.prepTime,
+        cookTime: recipe.cookTime,
+        estimatedCookingTime:
+          recipe.estimatedCookingTime,
+        servings: recipe.servings,
+        description: recipe.description,
+        cuisine: recipe.cuisine,
+        category: recipe.category,
+        image: recipe.image,
+        atRiskIngredients: [],
+        pantryItems: formattedIngredients
+          .filter((item) => item.isAvailable)
+          .map((item) => item.name),
+        missingIngredients,
+        rescueWeight: recipe.rescueWeight,
+        moneySaved: recipe.moneySaved,
+        wasteSavingTip: recipe.wasteSavingTip,
+        steps: recipe.steps,
+        ingredientsWithQuantities:
+          formattedIngredients,
+        substitutions: recipe.substitutions || [],
+        matchPercentage,
+        isAIGenerated: true,
+      };
+    });
+
     return res.json({
-      recipes: [],
-      source: "canonical-verifier",
-      message: "I couldn't find a verified recipe matching your ingredients.",
+      recipes: formattedMaggi,
+      source: "maggi-canonical-ai",
+      message:
+        "Showing only verified Smart Shelf Maggi recipes.",
     });
   }
 
-  // Rank candidate recipes based on target tokens and inventory possession
-  const rankedCandidates = [...candidateRecipes].sort((a, b) => {
-    const aReq = (a.normalizedRequired || []).map((s) => s.toLowerCase());
-    const bReq = (b.normalizedRequired || []).map((s) => s.toLowerCase());
-
-    // Matches with target query tokens
-    const aTargetMatches = allTargetTokens.filter((t) => aReq.includes(t)).length;
-    const bTargetMatches = allTargetTokens.filter((t) => bReq.includes(t)).length;
-    if (bTargetMatches !== aTargetMatches) {
-      return bTargetMatches - aTargetMatches;
-    }
-
-    // Possession matches
-    const aAvail = aReq.filter((item) => userPossessedSet.has(item)).length;
-    const bAvail = bReq.filter((item) => userPossessedSet.has(item)).length;
-    return bAvail - aAvail;
-  });
-
-  const selectedCanonicalRecipes = rankedCandidates.slice(0, 5);
+  /*
+   * ------------------------------------------------------------
+   * NORMAL AI RECIPE GENERATION
+   * ------------------------------------------------------------
+   *
+   * For every non-Maggi request, Gemini is allowed to create
+   * an appropriate recipe even when it does NOT exist in the
+   * stored recipe database.
+   */
 
   const ai = getAIClient();
-  if (ai) {
+
+  if (!ai) {
+    return res.status(503).json({
+      recipes: [],
+      source: "ai-unavailable",
+      message:
+        "Gemini AI is not configured. Please configure GEMINI_API_KEY.",
+    });
+  }
+
+  const availableItems =
+    normalizedInventory.length > 0
+      ? normalizedInventory
+      : normalizedIngredients;
+
+  const aiPrompt = `
+You are the Smart Shelf AI Chef.
+
+The user wants a recipe based on their kitchen ingredients.
+
+USER QUERY:
+"${query}"
+
+USER AVAILABLE INGREDIENTS:
+${JSON.stringify(availableItems)}
+
+USER REQUESTED INGREDIENTS:
+${JSON.stringify(normalizedIngredients)}
+
+CUISINE PREFERENCE:
+${cuisinePreference}
+
+DIETARY PREFERENCE:
+${dietaryPreference}
+
+IMPORTANT RULES:
+
+1. Generate a REALISTIC recipe that actually matches the user's request.
+2. You are NOT restricted to a stored recipe database.
+3. You MAY create a recipe that does not exist in Smart Shelf's stored catalog.
+4. Prioritize Indian and South Indian homestyle cooking when appropriate.
+5. If the user has chicken + rice, Chicken Biryani is an appropriate possible result.
+6. Do NOT invent bizarre combinations simply to use every ingredient.
+7. Use the user's available ingredients as the primary ingredients.
+8. Common pantry basics such as salt, oil, water and basic spices may be assumed when reasonable.
+9. If an important ingredient is missing, put it in missingIngredients.
+10. NEVER claim a missing ingredient is available.
+11. availableIngredientsList must contain only ingredients actually available.
+12. missingIngredientsList must contain only ingredients that are not available.
+13. Give realistic quantities.
+14. Give clear cooking steps.
+15. Return ONE best recipe first and optionally up to two alternatives.
+16. Do not return Maggi recipes from this general AI path.
+17. Do not use fake cuisine labels.
+18. The recipe title should be a normal, recognizable dish name.
+
+Return ONLY valid JSON in this format:
+
+{
+  "recipes": [
+    {
+      "title": "Recipe name",
+      "subtitle": "Short description",
+      "description": "Brief description",
+      "cuisine": "Cuisine",
+      "category": "Breakfast | Lunch | Dinner | Snack | Side",
+      "prepTime": "10 min",
+      "cookTime": "20 min",
+      "estimatedCookingTime": "30 min",
+      "servings": 2,
+      "ingredientsWithQuantities": [
+        {
+          "name": "Chicken",
+          "quantity": "250 g",
+          "isAvailable": true
+        }
+      ],
+      "availableIngredientsList": ["Chicken", "Rice"],
+      "missingIngredientsList": ["Onion"],
+      "steps": [
+        {
+          "stepNumber": 1,
+          "title": "Prepare",
+          "duration": "5 min",
+          "instructions": [
+            "Step instruction"
+          ]
+        }
+      ],
+      "substitutions": [],
+      "wasteSavingTip": "Useful tip"
+    }
+  ]
+}
+`;
+
+  const systemInstruction = `
+You are a reliable recipe-generation engine.
+
+Your highest priorities are:
+- truthful ingredient availability
+- realistic recipes
+- correct cuisine names
+- useful quantities
+- simple cooking instructions
+- no hallucinated ingredient availability
+
+Never say an ingredient is available unless it appears in the user's
+available ingredient list.
+
+Never create fake or nonsensical recipe names.
+
+The user is allowed to receive recipes that are not present in any
+stored recipe database.
+`;
+
+  try {
+   const generateWithRetry = async (attempts = 3): Promise<any> => {
+  let lastError: unknown = null;
+
+  for (let attempt = 1; attempt <= attempts; attempt++) {
     try {
-      const allowedTitles = selectedCanonicalRecipes.map((r) => r.title);
-      const prompt = `Available kitchen items: ${JSON.stringify(Array.from(userPossessedSet))}
-User query: "${searchQuery}"
-ALLOWED VERIFIED CANONICAL RECIPES:
-${selectedCanonicalRecipes.map((r) => `- ${r.title} (Cuisine: ${r.cuisine}, Category: ${r.category})`).join("\n")}
-
-You must return a JSON array of up to ${selectedCanonicalRecipes.length} recipe objects conforming strictly to the allowed titles list.
-CRITICAL INTEGRITY ENFORCEMENT:
-1. ONLY return recipe names from this approved list: ${JSON.stringify(allowedTitles)}.
-2. NEVER invent recipe names (NEVER generate "Maggi Poriyal", "Maggi Kootu", "Maggi Curry", "Maggi Tawa Pulao", or any invented combination).
-3. Set isAvailable: true ONLY if the item is present in user's available kitchen items. Otherwise set isAvailable: false and put in missingIngredients.
-4. Personalize only realistic ingredient quantities, steps, substitutions, and tips for these verified dishes.`;
-
-      const systemInstruction = `You are the expert AI Chef engine for Smart Shelf AI Kitchen Manager.
-STRICT DATA INTEGRITY RULES:
-1. CANONICAL NAMES ONLY: You are strictly forbidden from creating new recipe names. Every recipe you output MUST match an approved canonical recipe title.
-2. ACCURATE CUISINES: Never label Maggi recipes as "South Indian" or "Traditional". Keep Maggi labeled as "Indian Street Food / Snack".
-3. TRUTHFUL INVENTORY MATCHING: Put missing ingredients under missingIngredients and mark isAvailable: false. Never pretend missing ingredients are available.`;
-
       const timeoutPromise = new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error("Gemini API call timed out after 10s")), 10000)
+        setTimeout(
+          () =>
+            reject(
+              new Error(
+                "Gemini API call timed out after 20 seconds"
+              )
+            ),
+          20000
+        )
       );
 
-      const response: any = await Promise.race([
+      return await Promise.race([
         ai.models.generateContent({
           model: "gemini-3.8-flash",
-          contents: prompt,
+          contents: aiPrompt,
           config: {
             responseMimeType: "application/json",
             systemInstruction,
@@ -548,146 +732,297 @@ STRICT DATA INTEGRITY RULES:
         }),
         timeoutPromise,
       ]);
+    } catch (error: any) {
+      lastError = error;
 
-      let jsonStr = response.text?.trim() || "";
-      if (jsonStr.startsWith("```")) {
-        jsonStr = jsonStr.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "");
+      const errorText = String(
+        error?.message || error || ""
+      );
+
+      const isTemporaryError =
+        errorText.includes("503") ||
+        errorText.includes("UNAVAILABLE") ||
+        errorText.includes("high demand") ||
+        errorText.includes("temporarily");
+
+      if (!isTemporaryError || attempt === attempts) {
+        throw error;
       }
 
-      const parsed = JSON.parse(jsonStr);
-      const rawRecipes = Array.isArray(parsed) ? parsed : parsed.recipes || [parsed];
+      console.warn(
+        `Gemini temporarily unavailable. Retrying (${attempt + 1}/${attempts})...`
+      );
 
-      if (Array.isArray(rawRecipes) && rawRecipes.length > 0) {
-        // VALIDATE EVERY AI RECIPE AGAINST CANONICAL DATABASE (RULE 9)
-        const validatedRecipes = rawRecipes
-          .map((r: any, idx: number) => {
-            const rawTitle = String(r.recipeName || r.title || "").trim();
-            const canonicalMatch = findCanonicalRecipe(rawTitle) || selectedCanonicalRecipes[idx % selectedCanonicalRecipes.length];
-
-            // If the AI generated an invented recipe name that does not exist in canonical database,
-            // reject it and substitute the verified canonical recipe!
-            const verifiedTitle = canonicalMatch.title;
-            const verifiedImage = getCanonicalImageForRecipe(verifiedTitle);
-            const verifiedCuisine = canonicalMatch.cuisine;
-
-            const ingList = Array.isArray(r.ingredientsWithQuantities) && r.ingredientsWithQuantities.length > 0
-              ? r.ingredientsWithQuantities
-              : canonicalMatch.ingredientsWithQuantities || [];
-
-            // Calculate actual truthful availability against user inventory
-            const formattedIngredients = ingList.map((i: any) => {
-              const ingName = String(i.name || "");
-              const isAvail = userPossessedSet.size > 0
-                ? userPossessedSet.has(normalizeToken(ingName)) || Boolean(i.isAvailable && userPossessedSet.has(normalizeToken(ingName)))
-                : Boolean(i.isAvailable);
-              return {
-                name: ingName,
-                quantity: String(i.quantity || "as required"),
-                isAvailable: isAvail,
-              };
-            });
-
-            const availCount = formattedIngredients.filter((i: any) => i.isAvailable).length;
-            const totalCount = formattedIngredients.length || 1;
-            const matchPercentage = Math.round((availCount / totalCount) * 100);
-
-            const missingIngredients = formattedIngredients
-              .filter((i: any) => !i.isAvailable)
-              .map((i: any) => `${i.name} (${i.quantity})`);
-
-            return {
-              id: `canonical-ai-${canonicalMatch.id}-${idx}`,
-              title: verifiedTitle,
-              subtitle: r.description || canonicalMatch.subtitle,
-              prepTime: r.prepTime || canonicalMatch.prepTime,
-              cookTime: r.cookTime || canonicalMatch.cookTime,
-              estimatedCookingTime: r.estimatedCookingTime || canonicalMatch.estimatedCookingTime,
-              servings: typeof r.servings === "number" ? r.servings : canonicalMatch.servings,
-              description: r.description || canonicalMatch.description,
-              cuisine: verifiedCuisine,
-              category: canonicalMatch.category,
-              image: verifiedImage,
-              atRiskIngredients: [],
-              pantryItems: formattedIngredients.filter((i: any) => i.isAvailable).map((i: any) => i.name),
-              missingIngredients,
-              rescueWeight: canonicalMatch.rescueWeight,
-              moneySaved: canonicalMatch.moneySaved,
-              wasteSavingTip: r.wasteSavingTip || canonicalMatch.wasteSavingTip,
-              steps: Array.isArray(r.steps) && r.steps.length > 0 ? r.steps : canonicalMatch.steps,
-              ingredientsWithQuantities: formattedIngredients,
-              substitutions: Array.isArray(r.substitutions) && r.substitutions.length > 0 ? r.substitutions : canonicalMatch.substitutions,
-              matchPercentage,
-              isAIGenerated: true,
-            };
-          })
-          .filter(Boolean);
-
-        if (validatedRecipes.length > 0) {
-          return res.json({
-            recipes: validatedRecipes,
-            source: "gemini-ai",
-            message: `Personalized ${validatedRecipes.length} verified canonical recipes.`,
-          });
-        }
-      }
-    } catch (err: any) {
-      console.warn("Gemini AI personalization failed; serving verified canonical recipes directly:", err?.message || err);
+      await new Promise((resolve) =>
+        setTimeout(resolve, attempt * 2000)
+      );
     }
   }
 
-  // CANONICAL FALLBACK GENERATOR: Formats matching canonical recipes with truthful inventory logic
-  const formattedCanonical = selectedCanonicalRecipes.map((canonical, idx) => {
-    const requiredItems = canonical.normalizedRequired || [];
-    const ingList = canonical.ingredientsWithQuantities || [];
+  throw lastError;
+};
 
-    const formattedIngredients = ingList.map((i) => {
-      const token = normalizeToken(i.name);
-      const isAvailable = userPossessedSet.has(token);
-      return {
-        ...i,
-        isAvailable,
-      };
+const response: any = await generateWithRetry(3);
+
+    let jsonText =
+      response.text?.trim() || "";
+
+    if (jsonText.startsWith("```")) {
+      jsonText = jsonText
+        .replace(/^```(?:json)?\s*/i, "")
+        .replace(/\s*```$/i, "");
+    }
+
+    const parsed = JSON.parse(jsonText);
+
+    const rawRecipes = Array.isArray(parsed)
+      ? parsed
+      : Array.isArray(parsed?.recipes)
+        ? parsed.recipes
+        : [parsed];
+
+    const recipes = rawRecipes
+      .filter(Boolean)
+      .slice(0, 3)
+      .map((recipe: any, index: number) => {
+        const ingredientsWithQuantities =
+          Array.isArray(recipe.ingredientsWithQuantities)
+            ? recipe.ingredientsWithQuantities
+            : [];
+
+        const formattedIngredients =
+          ingredientsWithQuantities.map(
+            (item: any) => {
+              const name = String(
+                item.name || ""
+              ).trim();
+
+              const token =
+                normalizeToken(name);
+
+              const isAvailable =
+                availableItems.includes(token);
+
+              return {
+                name,
+                quantity: String(
+                  item.quantity || "as required"
+                ),
+                isAvailable,
+              };
+            }
+          );
+
+        const availableIngredientsList =
+          formattedIngredients
+            .filter((item: any) =>
+              item.isAvailable
+            )
+            .map((item: any) => item.name);
+
+        const missingIngredientsList =
+          formattedIngredients
+            .filter(
+              (item: any) =>
+                !item.isAvailable
+            )
+            .map((item: any) => item.name);
+
+        const totalIngredients =
+          formattedIngredients.length;
+
+        const availableCount =
+          availableIngredientsList.length;
+
+        const matchPercentage =
+          totalIngredients > 0
+            ? Math.round(
+                (availableCount /
+                  totalIngredients) *
+                  100
+              )
+            : 100;
+
+        return {
+          id: `ai-generated-${Date.now()}-${index}`,
+          title:
+            String(
+              recipe.title ||
+                recipe.recipeName ||
+                "AI Kitchen Recipe"
+            ),
+          subtitle:
+            String(
+              recipe.subtitle ||
+                "Created by Smart Shelf AI"
+            ),
+          prepTime:
+            String(
+              recipe.prepTime || "5 min"
+            ),
+          cookTime:
+            String(
+              recipe.cookTime || "15 min"
+            ),
+          estimatedCookingTime:
+            String(
+              recipe.estimatedCookingTime ||
+                ""
+            ),
+          servings:
+            typeof recipe.servings ===
+            "number"
+              ? recipe.servings
+              : 2,
+          description:
+            String(
+              recipe.description ||
+                "A recipe created from your available ingredients."
+            ),
+          cuisine:
+            String(
+              recipe.cuisine ||
+                "Indian"
+            ),
+          category:
+            ["Breakfast", "Lunch", "Dinner", "Snack", "Side"]
+              .includes(recipe.category)
+              ? recipe.category
+              : "Dinner",
+          image:
+            getCanonicalImageForRecipe(
+              String(
+                recipe.title ||
+                  recipe.recipeName ||
+                  "AI Recipe"
+              )
+            ),
+          atRiskIngredients: [],
+          pantryItems:
+            availableIngredientsList,
+          missingIngredients:
+            missingIngredientsList,
+          rescueWeight: "0",
+          moneySaved: "₹0",
+          wasteSavingTip:
+            recipe.wasteSavingTip ||
+            "Use ingredients that are closest to expiry first.",
+          steps:
+            Array.isArray(recipe.steps)
+              ? recipe.steps
+              : [],
+          ingredientsWithQuantities:
+            formattedIngredients,
+          substitutions:
+            Array.isArray(recipe.substitutions)
+              ? recipe.substitutions
+              : [],
+          availableIngredientsList,
+          missingIngredientsList,
+          matchPercentage,
+          isAIGenerated: true,
+        };
+      });
+
+    if (recipes.length > 0) {
+      return res.json({
+        recipes,
+        source: "gemini-ai",
+        message:
+          `Gemini generated ${recipes.length} recipe${recipes.length === 1 ? "" : "s"}.`,
+      });
+    }
+
+    return res.status(502).json({
+      recipes: [],
+      source: "gemini-ai",
+      message:
+        "Gemini did not return a usable recipe.",
     });
+  } catch (error: any) {
+    console.error(
+      "Gemini dynamic recipe generation failed:",
+      error?.message || error
+    );
 
-    const availReqCount = requiredItems.filter((req) => userPossessedSet.has(req.toLowerCase())).length;
-    const totalReqCount = requiredItems.length || 1;
-    const matchPercentage = totalReqCount === 0 ? 100 : Math.round((availReqCount / totalReqCount) * 100);
+    // Gemini can temporarily return 503 when the model is busy.
+    // Keep Generate with AI usable with the verified Smart Shelf recipes.
+    try {
+      const fallbackCandidates = CANONICAL_RECIPES.filter((recipe) => {
+        const required = Array.isArray(recipe.normalizedRequired)
+          ? recipe.normalizedRequired
+          : [];
 
-    const missingIngredients = formattedIngredients
-      .filter((i) => !i.isAvailable)
-      .map((i) => `${i.name} (${i.quantity})`);
+        return required.some((ingredient: string) =>
+          availableItems.includes(normalizeToken(ingredient))
+        );
+      });
 
-    return {
-      id: `canonical-${canonical.id}-${idx}`,
-      title: canonical.title,
-      subtitle: canonical.subtitle,
-      prepTime: canonical.prepTime,
-      cookTime: canonical.cookTime,
-      estimatedCookingTime: canonical.estimatedCookingTime,
-      servings: canonical.servings,
-      description: canonical.description,
-      cuisine: canonical.cuisine,
-      category: canonical.category,
-      image: canonical.image,
-      atRiskIngredients: [],
-      pantryItems: formattedIngredients.filter((i) => i.isAvailable).map((i) => i.name),
-      missingIngredients,
-      rescueWeight: canonical.rescueWeight,
-      moneySaved: canonical.moneySaved,
-      wasteSavingTip: canonical.wasteSavingTip,
-      steps: canonical.steps,
-      ingredientsWithQuantities: formattedIngredients,
-      substitutions: canonical.substitutions || [],
-      matchPercentage,
-      isAIGenerated: false,
-    };
-  });
+      const rankedFallback = fallbackCandidates
+        .map((recipe) => {
+          const required = Array.isArray(recipe.normalizedRequired)
+            ? recipe.normalizedRequired
+            : [];
 
-  return res.json({
-    recipes: formattedCanonical,
-    source: "smart-shelf-canonical",
-    message: `Generated ${formattedCanonical.length} authentic verified recipes.`,
-  });
+          const matched = required.filter((ingredient: string) =>
+            availableItems.includes(normalizeToken(ingredient))
+          );
+
+          const matchPercentage =
+            required.length > 0
+              ? Math.round((matched.length / required.length) * 100)
+              : 0;
+
+          return {
+            recipe,
+            matchPercentage,
+          };
+        })
+        .filter((item) => item.matchPercentage > 0)
+        .sort(
+          (a, b) => b.matchPercentage - a.matchPercentage
+        )
+        .slice(0, 5);
+
+      const fallbackRecipes = rankedFallback.map(
+        ({ recipe, matchPercentage }) => ({
+          ...recipe,
+          image: getCanonicalImageForRecipe(recipe.title),
+          availableIngredientsList:
+            recipe.normalizedRequired?.filter((ingredient: string) =>
+              availableItems.includes(normalizeToken(ingredient))
+            ) || [],
+          missingIngredientsList:
+            recipe.normalizedRequired?.filter((ingredient: string) =>
+              !availableItems.includes(normalizeToken(ingredient))
+            ) || [],
+          matchPercentage,
+          isAIGenerated: false,
+        })
+      );
+
+      if (fallbackRecipes.length > 0) {
+        return res.json({
+          recipes: fallbackRecipes,
+          source: "smart-shelf-fallback",
+          message:
+            "Gemini is temporarily unavailable. Showing verified Smart Shelf recipes.",
+        });
+      }
+    } catch (fallbackError: any) {
+      console.error(
+        "Smart Shelf fallback failed:",
+        fallbackError?.message || fallbackError
+      );
+    }
+
+    return res.status(502).json({
+      recipes: [],
+      source: "gemini-error",
+      message:
+        "Gemini is temporarily unavailable and no verified fallback recipe was found.",
+    });
+  }
 });
 
 app.post("/api/recipes/recommend", async (req, res) => {
