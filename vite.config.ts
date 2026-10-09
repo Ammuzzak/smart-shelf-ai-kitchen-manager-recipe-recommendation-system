@@ -4,7 +4,7 @@ import tailwindcss from '@tailwindcss/vite';
 import path from 'path';
 
 export default defineConfig({
-  base: '/smart-shelf-ai-kitchen-manager-recipe-recommendation-system/',
+  base: '/',
 
   plugins: [
     react(),
@@ -15,6 +15,10 @@ export default defineConfig({
     alias: {
       '@': path.resolve(__dirname, '.'),
     },
+  },
+
+  build: {
+    chunkSizeWarningLimit: 1000,
   },
 
   server: {
