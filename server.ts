@@ -30,7 +30,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
-const PORT: number = Number(process.env.PORT) || 3000;
+const PORT = process.env.PORT || 3000;
 
 app.use(express.json({ limit: "15mb" }));
 app.use(express.urlencoded({ limit: "15mb", extended: true }));
@@ -123,10 +123,6 @@ app.use(express.static(path.join(__dirname, "dist")));
 // Serve index.html for all non-API routes (fallback for single-page app)
 app.get("*", (req, res) => {
   res.sendFile(path.join(__dirname, "dist", "index.html"));
-});
-
-app.listen(PORT, "0.0.0.0", () => {
-  console.log(`Smart Shelf Server running at http://0.0.0.0:${PORT}`);
 });
 
 // Get User Isolated Data Endpoint
