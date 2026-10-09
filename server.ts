@@ -1,434 +1,577 @@
+
 import express from "express";
 import path from "path";
 import { fileURLToPath } from "url";
 import { createServer as createViteServer } from "vite";
 import dotenv from "dotenv";
 import { GoogleGenAI } from "@google/genai";
+import mongoose from "mongoose";
+import {
+  randomBytes,
+  createHash,
+  scrypt,
+  timingSafeEqual,
+} from "node:crypto";
+import { promisify } from "node:util";
+
 import {
   CANONICAL_RECIPES,
-  isCanonicalRecipeTitle,
-  findCanonicalRecipe,
   getCanonicalImageForRecipe,
-  CanonicalRecipe,
 } from "./src/data/canonicalRecipes";
-import {
-  initAuthStore,
-  signUpUser,
-  loginUser,
-  logoutUser,
-  getUserByToken,
-  getUserData,
-  saveUserData,
-} from "./src/server/authStore";
 
 dotenv.config();
-
-// Initialize backend persistent data directories
-initAuthStore();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = Number(process.env.PORT || 3000);
+const scryptAsync = promisify(scrypt);
 
 app.use(express.json({ limit: "15mb" }));
 app.use(express.urlencoded({ limit: "15mb", extended: true }));
 
-// Initialize Gemini SDK with telemetry header (lazy initialization)
+// =====================================================
+// MONGODB USER MODEL AND ISOLATED USER DATA
+// =====================================================
+
+const UserSchema = new mongoose.Schema(
+  {
+    name: { type: String, required: true, trim: true },
+    email: {
+      type: String,
+      required: true,
+      unique: true,
+      lowercase: true,
+      trim: true,
+    },
+    passwordHash: { type: String, required: true },
+    data: {
+      type: mongoose.Schema.Types.Mixed,
+      default: () => ({
+        inventory: [],
+        wasteRecords: [],
+        shoppingItems: [],
+        chefHistory: [],
+        preferences: {},
+      }),
+    },
+    sessions: {
+      type: [
+        {
+          tokenHash: { type: String, required: true },
+          expiresAt: { type: Date, required: true },
+        },
+      ],
+      default: [],
+    },
+  },
+  { timestamps: true }
+);
+
+const User =
+  mongoose.models.User ||
+  mongoose.model("User", UserSchema);
+
+const hashToken = (token: string) =>
+  createHash("sha256").update(token).digest("hex");
+
+async function hashPassword(password: string) {
+  const salt = randomBytes(16).toString("hex");
+  const derivedKey = (await scryptAsync(password, salt, 64)) as Buffer;
+  return `${salt}:${derivedKey.toString("hex")}`;
+}
+
+async function verifyPassword(
+  password: string,
+  storedHash: string
+) {
+  const [salt, key] = storedHash.split(":");
+  if (!salt || !key) return false;
+
+  const expected = Buffer.from(key, "hex");
+  const actual = (await scryptAsync(password, salt, 64)) as Buffer;
+
+  return (
+    actual.length === expected.length &&
+    timingSafeEqual(actual, expected)
+  );
+}
+
+async function createSession(user: any) {
+  const token = randomBytes(32).toString("hex");
+
+  user.sessions = (user.sessions || []).filter(
+    (session: any) =>
+      new Date(session.expiresAt).getTime() > Date.now()
+  );
+
+  user.sessions.push({
+    tokenHash: hashToken(token),
+    expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+  });
+
+  await user.save();
+
+  return token;
+}
+
+async function getUserByToken(token: string) {
+  if (!token) return null;
+
+  const tokenHash = hashToken(token);
+
+  return User.findOne({
+    "sessions.tokenHash": tokenHash,
+    "sessions.expiresAt": { $gt: new Date() },
+  });
+}
+
+function getToken(req: express.Request) {
+  const auth = req.headers.authorization || "";
+  return auth.replace(/^Bearer\s+/i, "").trim();
+}
+
+function publicUser(user: any) {
+  return {
+    id: user._id.toString(),
+    name: user.name,
+    email: user.email,
+  };
+}
+
+function getStoredData(user: any) {
+  return {
+    inventory: user.data?.inventory ?? [],
+    wasteRecords: user.data?.wasteRecords ?? [],
+    shoppingItems: user.data?.shoppingItems ?? [],
+    chefHistory: user.data?.chefHistory ?? [],
+    preferences: user.data?.preferences ?? {},
+  };
+}
+
+// =====================================================
+// GEMINI AI
+// =====================================================
+
 let aiClient: GoogleGenAI | null = null;
+
 function getAIClient(): GoogleGenAI | null {
   if (!aiClient && process.env.GEMINI_API_KEY) {
     try {
       aiClient = new GoogleGenAI({
         apiKey: process.env.GEMINI_API_KEY,
-        httpOptions: {
-          headers: {
-            "User-Agent": "aistudio-build",
-          },
-        },
       });
-    } catch (err) {
-      console.error("Failed to initialize GoogleGenAI client:", err);
+    } catch (error) {
+      console.error("Gemini initialization failed:", error);
     }
   }
+
   return aiClient;
 }
 
-// Health check endpoint
+// =====================================================
+// HEALTH CHECK
+// =====================================================
+
 app.get("/api/health", (_req, res) => {
   res.json({
     status: "ok",
     app: "Smart Shelf AI Kitchen Manager",
+    database: mongoose.connection.readyState === 1 ? "connected" : "disconnected",
     geminiConfigured: Boolean(process.env.GEMINI_API_KEY),
     time: new Date().toISOString(),
   });
 });
 
-// ==========================================
-// AUTHENTICATION & USER DATA ENDPOINTS
-// ==========================================
+// =====================================================
+// SIGN UP
+// =====================================================
 
-// Sign Up Endpoint
-app.post("/api/auth/signup", (req, res) => {
+app.post("/api/auth/signup", async (req, res) => {
   try {
     const { name, email, password, confirmPassword } = req.body;
-    if (password !== confirmPassword) {
-      return res.status(400).json({ error: "Passwords do not match." });
+
+    if (
+      typeof name !== "string" ||
+      !name.trim() ||
+      typeof email !== "string" ||
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()) ||
+      typeof password !== "string" ||
+      password.length < 8
+    ) {
+      return res.status(400).json({
+        error: "Enter a valid name and email. Password must contain at least 8 characters.",
+      });
     }
-    const result = signUpUser(name, email, password);
-    return res.status(201).json(result);
-  } catch (err: any) {
-    return res.status(err.status || 500).json({ error: err.message || "Failed to create account." });
+
+    if (password !== confirmPassword) {
+      return res.status(400).json({
+        error: "Passwords do not match.",
+      });
+    }
+
+    const normalizedEmail = email.trim().toLowerCase();
+
+    const existing = await User.findOne({ email: normalizedEmail });
+
+    if (existing) {
+      return res.status(409).json({
+        error: "An account with this email already exists.",
+      });
+    }
+
+    const user = await User.create({
+      name: name.trim(),
+      email: normalizedEmail,
+      passwordHash: await hashPassword(password),
+      data: {
+        inventory: [],
+        wasteRecords: [],
+        shoppingItems: [],
+        chefHistory: [],
+        preferences: {},
+      },
+      sessions: [],
+    });
+
+    const token = await createSession(user);
+
+    return res.status(201).json({
+      success: true,
+      token,
+      user: publicUser(user),
+    });
+  } catch (error: any) {
+    if (error?.code === 11000) {
+      return res.status(409).json({
+        error: "An account with this email already exists.",
+      });
+    }
+
+    console.error("Signup failed:", error?.message || error);
+
+    return res.status(500).json({
+      error: "Failed to create account.",
+    });
   }
 });
 
-// Login Endpoint
-app.post("/api/auth/login", (req, res) => {
+// =====================================================
+// LOGIN
+// =====================================================
+
+app.post("/api/auth/login", async (req, res) => {
   try {
     const { email, password } = req.body;
-    const result = loginUser(email, password);
-    return res.json(result);
-  } catch (err: any) {
-    return res.status(err.status || 401).json({ error: err.message || "Invalid email or password." });
-  }
-});
 
-// Logout Endpoint
-app.post("/api/auth/logout", (req, res) => {
-  const authHeader = req.headers.authorization || "";
-  const token = authHeader.replace(/^Bearer\s+/i, "").trim();
-  logoutUser(token);
-  return res.json({ success: true, message: "Logged out successfully." });
-});
-
-// Get Current User Profile Endpoint
-app.get("/api/auth/me", (req, res) => {
-  const authHeader = req.headers.authorization || "";
-  const token = authHeader.replace(/^Bearer\s+/i, "").trim();
-  const user = getUserByToken(token);
-  if (!user) {
-    return res.status(401).json({ error: "Session expired or invalid. Please sign in." });
-  }
-  return res.json({ user });
-});
-
-// ==========================================
-// STATIC FRONTEND FILE SERVING (RENDER)
-// ==========================================
-
-// Serve static build files generated by Vite
-app.use(express.static(path.join(__dirname, "dist")));
-
-// Serve index.html for all non-API routes (fallback for single-page app)
-app.get("*", (req, res) => {
-  res.sendFile(path.join(__dirname, "dist", "index.html"));
-});
-
-// Get User Isolated Data Endpoint
-app.get("/api/user/data", (req, res) => {
-  const authHeader = req.headers.authorization || "";
-  const token = authHeader.replace(/^Bearer\s+/i, "").trim();
-  const user = getUserByToken(token);
-  if (!user) {
-    return res.status(401).json({ error: "Unauthorized" });
-  }
-  const data = getUserData(user.id);
-  return res.json(data);
-});
-
-// Sync User Isolated Data Endpoint
-app.post("/api/user/sync", (req, res) => {
-  const authHeader = req.headers.authorization || "";
-  const token = authHeader.replace(/^Bearer\s+/i, "").trim();
-  const user = getUserByToken(token);
-  if (!user) {
-    return res.status(401).json({ error: "Unauthorized" });
-  }
-  const { inventory, wasteRecords, shoppingItems, chefHistory, preferences } = req.body;
-  saveUserData(user.id, { inventory, wasteRecords, shoppingItems, chefHistory, preferences });
-  return res.json({ success: true });
-});
-
-// Load Starter Sample Pantry for Authenticated User
-app.post("/api/user/load-sample", (req, res) => {
-  const authHeader = req.headers.authorization || "";
-  const token = authHeader.replace(/^Bearer\s+/i, "").trim();
-  const user = getUserByToken(token);
-  if (!user) {
-    return res.status(401).json({ error: "Unauthorized" });
-  }
-
-  const sampleInventory = [
-    {
-      id: `inv-${Date.now()}-1`,
-      name: "Maggi 2-Minute Masala Noodles",
-      category: "Pantry",
-      quantity: 3,
-      unit: "packs",
-      expiryDate: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
-      location: "Pantry Shelf",
-      confidence: "high",
-      addedDate: new Date().toISOString().split("T")[0],
-      urgencyStatus: "optimal",
-    },
-    {
-      id: `inv-${Date.now()}-2`,
-      name: "Farm Fresh Eggs",
-      category: "Dairy & Eggs",
-      quantity: 6,
-      unit: "pcs",
-      expiryDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
-      location: "Refrigerator Door",
-      confidence: "high",
-      addedDate: new Date().toISOString().split("T")[0],
-      urgencyStatus: "warning",
-    },
-    {
-      id: `inv-${Date.now()}-3`,
-      name: "Country Tomatoes",
-      category: "Produce",
-      quantity: 1,
-      unit: "kg",
-      expiryDate: new Date(Date.now() + 4 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
-      location: "Vegetable Crisper",
-      confidence: "high",
-      addedDate: new Date().toISOString().split("T")[0],
-      urgencyStatus: "urgent",
-    },
-  ];
-
-  saveUserData(user.id, { inventory: sampleInventory });
-  return res.json({ success: true, inventory: sampleInventory });
-});
-
-// AI Chef Conversational Query & Cooking Guidance ("Hey Chef")
-app.post("/api/chef/ask", async (req, res) => {
-  const { query, activeRecipe, currentStep, userInventory = [], pantryItems } = req.body;
-
-  const userQuery = (query || "").trim();
-  const qLower = userQuery.toLowerCase();
-
-  // Extract inventory names list for truth checking
-  const invList: Array<{ name: string; quantity: number; unit: string }> = Array.isArray(userInventory)
-    ? userInventory.map((i: any) => ({
-        name: String(i.name || ""),
-        quantity: Number(i.quantity || 0),
-        unit: String(i.unit || "unit"),
-      }))
-    : [];
-
-  const invNames = invList.map((i) => i.name.toLowerCase());
-
-  // Check specifically for Maggi / instant noodles
-  const isMaggiQuery =
-    qLower.includes("maggi") ||
-    qLower.includes("maggie") ||
-    qLower.includes("noodle") ||
-    qLower.includes("noodles");
-
-  const hasMaggiInInventory = invList.some(
-    (i) =>
-      i.name.toLowerCase().includes("maggi") ||
-      i.name.toLowerCase().includes("maggie") ||
-      i.name.toLowerCase().includes("noodle")
-  );
-
-  const isTamilTanglish =
-    /enna|sapadalam|samayikalam|panna|mudiyum|iruku|irukku|kitta|venum|epdi|seiya|sapdanum/i.test(qLower);
-
-  // If user explicitly asks about Maggi, answer specifically about Maggi!
-  if (isMaggiQuery) {
-    const hasEggs = invList.some((i) => i.name.toLowerCase().includes("egg") || i.name.toLowerCase().includes("muttai"));
-    const hasOnion = invList.some((i) => i.name.toLowerCase().includes("onion") || i.name.toLowerCase().includes("vengayam"));
-    const hasTomato = invList.some((i) => i.name.toLowerCase().includes("tomato") || i.name.toLowerCase().includes("thakkali"));
-
-    const availableAddons: string[] = [];
-    if (hasEggs) availableAddons.push("Eggs");
-    if (hasOnion) availableAddons.push("Onions");
-    if (hasTomato) availableAddons.push("Tomatoes");
-
-    if (hasMaggiInInventory) {
-      let reply = "";
-      if (isTamilTanglish) {
-        reply = `Unga My Food inventory-la Maggi irukku! 2-3 minutes-la Classic Masala Maggi ready pannalam.`;
-        if (availableAddons.length > 0) {
-          reply += ` Unga kitta ${availableAddons.join(", ")} kooda irukku, adhanala ${availableAddons[0]} Maggi kooda try pannalam!`;
-        }
-      } else {
-        reply = `You have Maggi in your kitchen! You can make Classic Masala Maggi in 2-3 minutes.`;
-        if (availableAddons.length > 0) {
-          reply += ` Available in inventory: Maggi, ${availableAddons.join(", ")}. You can also prepare ${availableAddons[0]} Maggi!`;
-        }
-      }
-      return res.json({
-        response: reply,
-        timerMinutes: 3,
-        source: "chef-inventory-truth",
-        dish: "Maggi",
-        maggiAvailable: true,
-      });
-    } else {
-      // Maggi is MISSING
-      let reply = "";
-      if (isTamilTanglish) {
-        reply = `Unga My Food storage-la ippo Maggi illa (Missing: Maggi 1 pack). Classic Maggi panna 1.5 cup thanni kothikka vechu, tastemaker pottu 2-3 mins medium flame-la cook pannunga. Maggi-ya Smart Shopping list-la add pannidava?`;
-      } else {
-        reply = `Maggi is currently not in your My Food inventory (Missing: Maggi 1 pack). To cook classic Maggi: boil 1.5 cups water, add tastemaker and noodle cake, and simmer for 2 to 3 minutes on medium flame. Would you like to add Maggi to your Smart Shopping list?`;
-      }
-      return res.json({
-        response: reply,
-        timerMinutes: 3,
-        source: "chef-inventory-truth",
-        dish: "Maggi",
-        maggiAvailable: false,
-        missingIngredients: ["Maggi Noodles 1 pack"],
+    if (
+      typeof email !== "string" ||
+      typeof password !== "string"
+    ) {
+      return res.status(400).json({
+        error: "Email and password are required.",
       });
     }
-  }
 
-  const ai = getAIClient();
-  if (ai) {
-    try {
-      const systemInstruction = `You are "Chef Narayanan", an expert South Indian master chef and AI Kitchen Assistant in Smart Shelf.
-CRITICAL TRUTH & INVENTORY RULES:
-1. The user's actual inventory is: ${JSON.stringify(invList)}.
-2. NEVER claim an ingredient is available unless it exists in the user's inventory list above!
-3. If the user asks for a specific dish, prioritize and answer specifically about that dish.
-4. Keep spoken responses concise, warmly encouraging, precise, and practical (1-3 sentences max).
-5. If the user speaks in Tamil or Tanglish, reply warmly in Tanglish.`;
+    const user = await User.findOne({
+      email: email.trim().toLowerCase(),
+    });
 
-      const promptContext = `Context:
-Current Active Recipe: ${activeRecipe || "Kitchen Guidance"}
-Current Step: ${currentStep || "Cooking"}
-User Question: "${userQuery || "What can I cook?"}"`;
-
-      const response = await ai.models.generateContent({
-        model: "gemini-3.8-flash",
-        contents: promptContext,
-        config: {
-          systemInstruction,
-          temperature: 0.6,
-        },
+    if (
+      !user ||
+      !(await verifyPassword(password, user.passwordHash))
+    ) {
+      return res.status(401).json({
+        error: "Invalid email or password.",
       });
-
-      const replyText = response.text?.trim();
-      if (replyText) {
-        const timerMatch = replyText.match(/(\d+)\s*(?:minute|min|m)/i);
-        const timerMinutes = timerMatch ? parseInt(timerMatch[1], 10) : 5;
-        return res.json({
-          response: replyText,
-          timerMinutes,
-          source: "gemini-ai",
-        });
-      }
-    } catch (error: any) {
-      console.warn("Gemini API error in chef ask:", error?.message || error);
     }
+
+    const token = await createSession(user);
+
+    return res.json({
+      success: true,
+      token,
+      user: publicUser(user),
+    });
+  } catch (error: any) {
+    console.error("Login failed:", error?.message || error);
+
+    return res.status(500).json({
+      error: "Unable to sign in. Please try again.",
+    });
   }
-
-  // Fallback culinary responses based strictly on actual items
-  let fallbackReply = `Chef advice: Keep flame on medium heat so spice flavors infuse without burning.`;
-  let timerMinutes = 5;
-
-  if (qLower.includes("substitute") || qLower.includes("tamarind")) {
-    fallbackReply = "Use 1.5 tbsp fresh lemon juice plus 1/4 teaspoon jaggery to replace tamarind paste. Add it after switching off the flame.";
-    timerMinutes = 0;
-  } else if (qLower.includes("next step") || qLower.includes("advance")) {
-    fallbackReply = "Pour the crackling mustard and curry leaves tadka immediately into the pot and close the lid for 30 seconds to lock in the aroma.";
-    timerMinutes = 1;
-  } else if (qLower.includes("boil") || qLower.includes("tomato") || qLower.includes("rasam")) {
-    fallbackReply = "Simmer the country tomatoes on medium flame for 6 to 8 minutes until skins naturally split and soften. I have started a 7-minute timer for you.";
-    timerMinutes = 7;
-  }
-
-  return res.json({
-    response: fallbackReply,
-    timerMinutes,
-    source: "culinary-engine",
-  });
 });
 
-// AI Recipe Generation Endpoint — Generates recipes dynamically from user ingredients
-// AI Recipe Generation Endpoint
-// Gemini dynamically creates recipes from the user's ingredients.
-// Maggi is the only protected canonical-recipe exception.
-app.post("/api/recipes/generate", async (req, res) => {
-  const {
-    ingredients = [],
-    userInventory = [],
-    cuisinePreference = "Any",
-    dietaryPreference = "Flexible",
-    searchQuery = "",
-  } = req.body;
+// =====================================================
+// LOGOUT
+// =====================================================
 
-  const tamilToEnglishMap: Record<string, string> = {
-    maggi: "maggi",
-    maggie: "maggi",
-    maggy: "maggi",
-    maggis: "maggi",
-    noodles: "maggi",
-    "instant noodles": "maggi",
-    thakkali: "tomato",
-    thakkalipazham: "tomato",
-    vengayam: "onion",
-    vengaayam: "onion",
-    vengaiyam: "onion",
-    muttai: "egg",
-    mutta: "egg",
-    anda: "egg",
-    koli: "chicken",
-    kozhi: "chicken",
-    chickan: "chicken",
-    murgh: "chicken",
-    arisi: "rice",
-    saatham: "rice",
-    sadham: "rice",
-    saadham: "rice",
-    chawal: "rice",
-    urulaikizhangu: "potato",
-    urulaikilangu: "potato",
-    urulai: "potato",
-    aloo: "potato",
-    paruppu: "toor dal",
-    dhal: "toor dal",
-    dal: "toor dal",
-    paal: "milk",
-    maanga: "mango",
-    maangai: "mango",
-    mampazham: "mango",
-    manga: "mango",
-    puli: "tamarind",
-    thengai: "coconut",
-    thayir: "curd",
-    dahi: "curd",
-    keerai: "spinach",
-    poondu: "garlic",
-    lahsun: "garlic",
-    inji: "ginger",
-    kadugu: "mustard seeds",
-    seeragam: "cumin seeds",
-    milagu: "black pepper",
-    vegetable: "vegetables",
-    vegetables: "vegetables",
-    veggie: "vegetables",
-    veggies: "vegetables",
-    kaygari: "vegetables",
-    cheese: "cheese",
-    paneer: "paneer",
-  };
+app.post("/api/auth/logout", async (req, res) => {
+  try {
+    const token = getToken(req);
 
-  const normalizeToken = (value: string): string => {
-    const cleaned = value.toLowerCase().trim();
-    return tamilToEnglishMap[cleaned] || cleaned;
-  };
+    if (token) {
+      await User.updateOne(
+        {},
+        {
+          $pull: {
+            sessions: { tokenHash: hashToken(token) },
+          },
+        }
+      );
+    }
 
-  const rawIngredients = Array.isArray(ingredients)
-    ? ingredients
-    : [];
+    return res.json({
+      success: true,
+      message: "Logged out successfully.",
+    });
+  } catch (error) {
+    console.error("Logout failed:", error);
 
-  const normalizedIngredients = rawIngredients
-    .map((item: any) =>
+    return res.status(500).json({
+      error: "Unable to log out.",
+    });
+  }
+});
+
+// =====================================================
+// CURRENT USER
+// =====================================================
+
+app.get("/api/auth/me", async (req, res) => {
+  try {
+    const user = await getUserByToken(getToken(req));
+
+    if (!user) {
+      return res.status(401).json({
+        error: "Session expired or invalid. Please sign in.",
+      });
+    }
+
+    return res.json({ user: publicUser(user) });
+  } catch (error) {
+    console.error("Profile lookup failed:", error);
+
+    return res.status(500).json({
+      error: "Unable to retrieve profile.",
+    });
+  }
+});
+
+// =====================================================
+// GET USER'S OWN INVENTORY AND DATA
+// =====================================================
+
+app.get("/api/user/data", async (req, res) => {
+  try {
+    const user = await getUserByToken(getToken(req));
+
+    if (!user) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    return res.json(getStoredData(user));
+  } catch (error) {
+    console.error("User data read failed:", error);
+
+    return res.status(500).json({
+      error: "Unable to load kitchen data.",
+    });
+  }
+});
+
+// =====================================================
+// SAVE USER'S OWN DATA
+// =====================================================
+
+app.post("/api/user/sync", async (req, res) => {
+  try {
+    const user = await getUserByToken(getToken(req));
+
+    if (!user) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const allowedFields = [
+      "inventory",
+      "wasteRecords",
+      "shoppingItems",
+      "chefHistory",
+      "preferences",
+    ] as const;
+
+    const updates: Record<string, unknown> = {};
+
+    for (const field of allowedFields) {
+      if (req.body[field] !== undefined) {
+        updates[`data.${field}`] = req.body[field];
+      }
+    }
+
+    if (Object.keys(updates).length > 0) {
+      await User.updateOne(
+        { _id: user._id },
+        { $set: updates }
+      );
+    }
+
+    return res.json({ success: true });
+  } catch (error) {
+    console.error("User sync failed:", error);
+
+    return res.status(500).json({
+      error: "Unable to save kitchen data.",
+    });
+  }
+});
+
+// =====================================================
+// LOAD SAMPLE PANTRY
+// =====================================================
+
+app.post("/api/user/load-sample", async (req, res) => {
+  try {
+    const user = await getUserByToken(getToken(req));
+
+    if (!user) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const dateAfter = (days: number) =>
+      new Date(Date.now() + days * 86400000)
+        .toISOString()
+        .split("T")[0];
+
+    const today = new Date().toISOString().split("T")[0];
+
+    const sampleInventory = [
+      {
+        id: `inv-${Date.now()}-1`,
+        name: "Maggi 2-Minute Masala Noodles",
+        category: "Pantry",
+        quantity: 3,
+        unit: "packs",
+        expiryDate: dateAfter(60),
+        location: "Pantry Shelf",
+        confidence: "high",
+        addedDate: today,
+        urgencyStatus: "optimal",
+      },
+      {
+        id: `inv-${Date.now()}-2`,
+        name: "Farm Fresh Eggs",
+        category: "Dairy & Eggs",
+        quantity: 6,
+        unit: "pcs",
+        expiryDate: dateAfter(7),
+        location: "Refrigerator Door",
+        confidence: "high",
+        addedDate: today,
+        urgencyStatus: "warning",
+      },
+      {
+        id: `inv-${Date.now()}-3`,
+        name: "Country Tomatoes",
+        category: "Produce",
+        quantity: 1,
+        unit: "kg",
+        expiryDate: dateAfter(4),
+        location: "Vegetable Crisper",
+        confidence: "high",
+        addedDate: today,
+        urgencyStatus: "urgent",
+      },
+    ];
+
+    user.data = {
+      ...(user.data?.toObject?.() || user.data || {}),
+      inventory: sampleInventory,
+    };
+
+    await user.save();
+
+    return res.json({
+      success: true,
+      inventory: sampleInventory,
+    });
+  } catch (error) {
+    console.error("Sample pantry failed:", error);
+
+    return res.status(500).json({
+      error: "Unable to load sample pantry.",
+    });
+  }
+});
+
+// =====================================================
+// TAMIL / TANGLISH NORMALIZATION
+// =====================================================
+
+const tamilToEnglishMap: Record<string, string> = {
+  maggi: "maggi",
+  maggie: "maggi",
+  maggy: "maggi",
+  maggis: "maggi",
+  noodles: "maggi",
+  "instant noodles": "maggi",
+  thakkali: "tomato",
+  thakkalipazham: "tomato",
+  vengayam: "onion",
+  vengaayam: "onion",
+  vengaiyam: "onion",
+  muttai: "egg",
+  mutta: "egg",
+  anda: "egg",
+  koli: "chicken",
+  kozhi: "chicken",
+  chickan: "chicken",
+  murgh: "chicken",
+  arisi: "rice",
+  saatham: "rice",
+  sadham: "rice",
+  saadham: "rice",
+  chawal: "rice",
+  urulaikizhangu: "potato",
+  urulaikilangu: "potato",
+  urulai: "potato",
+  aloo: "potato",
+  paruppu: "toor dal",
+  dhal: "toor dal",
+  dal: "toor dal",
+  paal: "milk",
+  maanga: "mango",
+  maangai: "mango",
+  mampazham: "mango",
+  manga: "mango",
+  puli: "tamarind",
+  thengai: "coconut",
+  thayir: "curd",
+  dahi: "curd",
+  keerai: "spinach",
+  poondu: "garlic",
+  lahsun: "garlic",
+  inji: "ginger",
+  kadugu: "mustard seeds",
+  seeragam: "cumin seeds",
+  milagu: "black pepper",
+  vegetable: "vegetables",
+  vegetables: "vegetables",
+  veggie: "vegetables",
+  veggies: "vegetables",
+  kaygari: "vegetables",
+  cheese: "cheese",
+  paneer: "paneer",
+};
+
+function normalizeToken(value: string): string {
+  const cleaned = value.toLowerCase().trim();
+  return tamilToEnglishMap[cleaned] || cleaned;
+}
+
+function normalizeList(items: any[]): string[] {
+  return items
+    .map((item) =>
       normalizeToken(
         typeof item === "string"
           ? item
@@ -436,354 +579,345 @@ app.post("/api/recipes/generate", async (req, res) => {
       )
     )
     .filter(Boolean);
+}
 
-  const normalizedInventory = Array.isArray(userInventory)
-    ? userInventory
-        .map((item: any) =>
-          normalizeToken(
-            typeof item === "string"
-              ? item
-              : String(item?.name || "")
-          )
-        )
-        .filter(Boolean)
-    : [];
+// =====================================================
+// AI CHEF — ENGLISH, TAMIL AND TANGLISH
+// =====================================================
 
-  const query = String(searchQuery || "").trim();
+app.post("/api/chef/ask", async (req, res) => {
+  try {
+    const {
+      query = "",
+      activeRecipe = "",
+      currentStep = "",
+      userInventory = [],
+    } = req.body;
 
-  const combinedIngredients = Array.from(
-    new Set([
-      ...normalizedIngredients,
-      ...normalizedInventory,
-    ])
-  );
+    const userQuery = String(query).trim();
+    const qLower = userQuery.toLowerCase();
 
-  /*
-   * ------------------------------------------------------------
-   * MAGGI PROTECTION
-   * ------------------------------------------------------------
-   *
-   * If the user explicitly asks for Maggi/noodles, do NOT allow
-   * Gemini to invent recipe names.
-   *
-   * Only these five canonical recipes are allowed:
-   * Masala Maggi
-   * Vegetable Maggi
-   * Egg Maggi
-   * Cheese Maggi
-   * Spicy Garlic Maggi
-   */
-  const asksForMaggi =
-    combinedIngredients.includes("maggi") ||
-    /maggi|maggie|maggy|noodle|instant noodles/i.test(query);
+    const inventory = Array.isArray(userInventory)
+      ? userInventory.map((item: any) => ({
+          name: String(item.name || ""),
+          quantity: Number(item.quantity || 0),
+          unit: String(item.unit || "unit"),
+        }))
+      : [];
 
-  if (asksForMaggi) {
-    const allowedMaggiTitles = [
-      "Masala Maggi",
-      "Vegetable Maggi",
-      "Egg Maggi",
-      "Cheese Maggi",
-      "Spicy Garlic Maggi",
-    ];
-
-    const maggiRecipes = CANONICAL_RECIPES.filter((recipe) =>
-      allowedMaggiTitles.includes(recipe.title)
+    const inventoryNames = inventory.map((item) =>
+      normalizeToken(item.name)
     );
 
-    const rankedMaggi = [...maggiRecipes].sort((a, b) => {
-      const aRequired = (a.normalizedRequired || []).map((x) =>
-        normalizeToken(x)
-      );
-      const bRequired = (b.normalizedRequired || []).map((x) =>
-        normalizeToken(x)
+    const isTamilTanglish =
+      /enna|sapadalam|samayikalam|panna|mudiyum|iruku|irukku|kitta|venum|epdi|seiya|sapdanum/i.test(
+        qLower
       );
 
-      const aScore = aRequired.filter((x) =>
-        combinedIngredients.includes(x)
-      ).length;
+    const isMaggiQuery =
+      /maggi|maggie|maggy|noodle/i.test(qLower);
 
-      const bScore = bRequired.filter((x) =>
-        combinedIngredients.includes(x)
-      ).length;
+    const hasMaggi = inventory.some((item) =>
+      /maggi|maggie|noodle/i.test(item.name)
+    );
 
-      return bScore - aScore;
-    });
+    if (isMaggiQuery) {
+      const extras: string[] = [];
 
-    const selectedMaggi = rankedMaggi.slice(0, 5);
+      if (inventory.some((i) => /egg|muttai/i.test(i.name))) {
+        extras.push("Egg");
+      }
 
-    const formattedMaggi = selectedMaggi.map((recipe, index) => {
-      const ingredientsWithQuantities =
-        recipe.ingredientsWithQuantities || [];
+      if (inventory.some((i) => /onion|vengayam/i.test(i.name))) {
+        extras.push("Onion");
+      }
 
-      const formattedIngredients =
-        ingredientsWithQuantities.map((item) => {
-          const token = normalizeToken(item.name);
-          const isAvailable =
-            combinedIngredients.includes(token);
+      if (inventory.some((i) => /tomato|thakkali/i.test(i.name))) {
+        extras.push("Tomato");
+      }
 
-          return {
-            ...item,
-            isAvailable,
-          };
+      if (!hasMaggi) {
+        const reply = isTamilTanglish
+          ? "Unga inventory-la Maggi illa. Classic Maggi panna 1 pack Maggi venum. Smart Shopping list-la add pannunga."
+          : "Maggi is not in your inventory. You need one pack to make classic Maggi. Add it to your Smart Shopping list.";
+
+        return res.json({
+          response: reply,
+          timerMinutes: 3,
+          source: "chef-inventory-truth",
+          maggiAvailable: false,
+          missingIngredients: ["Maggi Noodles 1 pack"],
+        });
+      }
+
+      const reply = isTamilTanglish
+        ? `Unga inventory-la Maggi irukku! 2-3 minutes-la Classic Masala Maggi pannalam.${extras.length ? ` Unga kitta ${extras.join(", ")}-um irukku.` : ""}`
+        : `You have Maggi! Make Classic Masala Maggi in about 2–3 minutes.${extras.length ? ` You also have ${extras.join(", ")} available.` : ""}`;
+
+      return res.json({
+        response: reply,
+        timerMinutes: 3,
+        source: "chef-inventory-truth",
+        maggiAvailable: true,
+      });
+    }
+
+    const ai = getAIClient();
+
+    if (ai) {
+      try {
+        const response = await ai.models.generateContent({
+          model: "gemini-3.8-flash",
+          contents: `Current recipe: ${activeRecipe || "None"}
+Current step: ${currentStep || "None"}
+User question: ${userQuery || "What can I cook?"}
+Actual inventory: ${JSON.stringify(inventory)}
+
+Give concise, practical cooking advice in 1–3 sentences.
+Never claim an ingredient is available unless it is in the inventory.
+Prioritize South Indian home cooking.
+Reply in friendly Tanglish when the user writes Tamil/Tanglish.`,
+          config: {
+            systemInstruction:
+              "You are Chef Narayanan, a helpful South Indian cooking assistant. Be accurate about inventory and never invent available ingredients.",
+            temperature: 0.4,
+          },
         });
 
-      const required =
-        (recipe.normalizedRequired || []).map((x) =>
-          normalizeToken(x)
-        );
+        const reply = response.text?.trim();
 
-      const availableRequired = required.filter((x) =>
-        combinedIngredients.includes(x)
-      ).length;
+        if (reply) {
+          const timerMatch = reply.match(
+            /(\d+)\s*(?:minute|min|m)\b/i
+          );
 
-      const matchPercentage =
-        required.length > 0
-          ? Math.round(
-              (availableRequired / required.length) * 100
-            )
-          : 100;
+          return res.json({
+            response: reply,
+            timerMinutes: timerMatch
+              ? Number(timerMatch[1])
+              : 5,
+            source: "gemini-ai",
+          });
+        }
+      } catch (error: any) {
+        console.warn("Chef Gemini error:", error?.message || error);
+      }
+    }
 
-      const missingIngredients = formattedIngredients
-        .filter((item) => !item.isAvailable)
-        .map(
-          (item) =>
-            `${item.name} (${item.quantity})`
-        );
+    let fallbackReply =
+      "Keep the flame on medium heat and stir regularly to prevent burning.";
+    let timerMinutes = 5;
 
-      return {
-        id: `maggi-ai-${recipe.id}-${index}`,
-        title: recipe.title,
-        subtitle: recipe.subtitle,
-        prepTime: recipe.prepTime,
-        cookTime: recipe.cookTime,
-        estimatedCookingTime:
-          recipe.estimatedCookingTime,
-        servings: recipe.servings,
-        description: recipe.description,
-        cuisine: recipe.cuisine,
-        category: recipe.category,
-        image: recipe.image,
-        atRiskIngredients: [],
-        pantryItems: formattedIngredients
-          .filter((item) => item.isAvailable)
-          .map((item) => item.name),
-        missingIngredients,
-        rescueWeight: recipe.rescueWeight,
-        moneySaved: recipe.moneySaved,
-        wasteSavingTip: recipe.wasteSavingTip,
-        steps: recipe.steps,
-        ingredientsWithQuantities:
-          formattedIngredients,
-        substitutions: recipe.substitutions || [],
-        matchPercentage,
-        isAIGenerated: true,
-      };
-    });
+    if (/substitute|tamarind/i.test(qLower)) {
+      fallbackReply =
+        "Try lemon juice as a substitute for tamarind. Add a little at a time and adjust to taste.";
+      timerMinutes = 0;
+    } else if (/next step|advance/i.test(qLower)) {
+      fallbackReply =
+        "Follow the next step shown in your recipe and check that the ingredients are cooked before serving.";
+      timerMinutes = 1;
+    } else if (/boil|tomato|rasam/i.test(qLower)) {
+      fallbackReply =
+        "Simmer the tomatoes for 6–8 minutes until soft. Adjust the cooking time based on their size.";
+      timerMinutes = 7;
+    }
 
     return res.json({
-      recipes: formattedMaggi,
-      source: "maggi-canonical-ai",
-      message:
-        "Showing only verified Smart Shelf Maggi recipes.",
+      response: fallbackReply,
+      timerMinutes,
+      source: "culinary-engine",
+    });
+  } catch (error) {
+    console.error("Chef endpoint failed:", error);
+
+    return res.status(500).json({
+      error: "Unable to process the Chef request.",
     });
   }
+});
 
-  /*
-   * ------------------------------------------------------------
-   * NORMAL AI RECIPE GENERATION
-   * ------------------------------------------------------------
-   *
-   * For every non-Maggi request, Gemini is allowed to create
-   * an appropriate recipe even when it does NOT exist in the
-   * stored recipe database.
-   */
+// =====================================================
+// RECIPE GENERATION — CANONICAL MAGGI + GEMINI AI
+// =====================================================
 
-  const ai = getAIClient();
+app.post("/api/recipes/generate", async (req, res) => {
+  try {
+    const {
+      ingredients = [],
+      userInventory = [],
+      cuisinePreference = "Any",
+      dietaryPreference = "Flexible",
+      searchQuery = "",
+    } = req.body;
 
-  if (!ai) {
-    return res.status(503).json({
-      recipes: [],
-      source: "ai-unavailable",
-      message:
-        "Gemini AI is not configured. Please configure GEMINI_API_KEY.",
-    });
-  }
+    const normalizedIngredients = normalizeList(
+      Array.isArray(ingredients) ? ingredients : []
+    );
 
-  const availableItems =
-    normalizedInventory.length > 0
+    const normalizedInventory = normalizeList(
+      Array.isArray(userInventory) ? userInventory : []
+    );
+
+    const query = String(searchQuery || "").trim();
+
+    const availableItems = normalizedInventory.length
       ? normalizedInventory
       : normalizedIngredients;
 
-  const aiPrompt = `
-You are the Smart Shelf AI Chef.
+    const combinedIngredients = [
+      ...new Set([
+        ...normalizedIngredients,
+        ...normalizedInventory,
+      ]),
+    ];
 
-The user wants a recipe based on their kitchen ingredients.
+    const asksForMaggi =
+      combinedIngredients.includes("maggi") ||
+      /maggi|maggie|maggy|noodle|instant noodles/i.test(query);
 
-USER QUERY:
-"${query}"
+    // Never allow the AI to invent Maggi dish titles.
+    if (asksForMaggi) {
+      const allowedTitles = [
+        "Masala Maggi",
+        "Vegetable Maggi",
+        "Egg Maggi",
+        "Cheese Maggi",
+        "Spicy Garlic Maggi",
+      ];
 
-USER AVAILABLE INGREDIENTS:
-${JSON.stringify(availableItems)}
+      const recipes = CANONICAL_RECIPES.filter((recipe: any) =>
+        allowedTitles.includes(recipe.title)
+      )
+        .map((recipe: any) => {
+          const required = (recipe.normalizedRequired || []).map(
+            normalizeToken
+          );
 
-USER REQUESTED INGREDIENTS:
-${JSON.stringify(normalizedIngredients)}
+          const matched = required.filter((item: string) =>
+            combinedIngredients.includes(item)
+          );
 
-CUISINE PREFERENCE:
-${cuisinePreference}
-
-DIETARY PREFERENCE:
-${dietaryPreference}
-
-IMPORTANT RULES:
-
-1. Generate a REALISTIC recipe that actually matches the user's request.
-2. You are NOT restricted to a stored recipe database.
-3. You MAY create a recipe that does not exist in Smart Shelf's stored catalog.
-4. Prioritize Indian and South Indian homestyle cooking when appropriate.
-5. If the user has chicken + rice, Chicken Biryani is an appropriate possible result.
-6. Do NOT invent bizarre combinations simply to use every ingredient.
-7. Use the user's available ingredients as the primary ingredients.
-8. Common pantry basics such as salt, oil, water and basic spices may be assumed when reasonable.
-9. If an important ingredient is missing, put it in missingIngredients.
-10. NEVER claim a missing ingredient is available.
-11. availableIngredientsList must contain only ingredients actually available.
-12. missingIngredientsList must contain only ingredients that are not available.
-13. Give realistic quantities.
-14. Give clear cooking steps.
-15. Return ONE best recipe first and optionally up to two alternatives.
-16. Do not return Maggi recipes from this general AI path.
-17. Do not use fake cuisine labels.
-18. The recipe title should be a normal, recognizable dish name.
-
-Return ONLY valid JSON in this format:
-
-{
-  "recipes": [
-    {
-      "title": "Recipe name",
-      "subtitle": "Short description",
-      "description": "Brief description",
-      "cuisine": "Cuisine",
-      "category": "Breakfast | Lunch | Dinner | Snack | Side",
-      "prepTime": "10 min",
-      "cookTime": "20 min",
-      "estimatedCookingTime": "30 min",
-      "servings": 2,
-      "ingredientsWithQuantities": [
-        {
-          "name": "Chicken",
-          "quantity": "250 g",
-          "isAvailable": true
-        }
-      ],
-      "availableIngredientsList": ["Chicken", "Rice"],
-      "missingIngredientsList": ["Onion"],
-      "steps": [
-        {
-          "stepNumber": 1,
-          "title": "Prepare",
-          "duration": "5 min",
-          "instructions": [
-            "Step instruction"
-          ]
-        }
-      ],
-      "substitutions": [],
-      "wasteSavingTip": "Useful tip"
-    }
-  ]
-}
-`;
-
-  const systemInstruction = `
-You are a reliable recipe-generation engine.
-
-Your highest priorities are:
-- truthful ingredient availability
-- realistic recipes
-- correct cuisine names
-- useful quantities
-- simple cooking instructions
-- no hallucinated ingredient availability
-
-Never say an ingredient is available unless it appears in the user's
-available ingredient list.
-
-Never create fake or nonsensical recipe names.
-
-The user is allowed to receive recipes that are not present in any
-stored recipe database.
-`;
-
-  try {
-   const generateWithRetry = async (attempts = 3): Promise<any> => {
-  let lastError: unknown = null;
-
-  for (let attempt = 1; attempt <= attempts; attempt++) {
-    try {
-      const timeoutPromise = new Promise<never>((_, reject) =>
-        setTimeout(
-          () =>
-            reject(
-              new Error(
-                "Gemini API call timed out after 20 seconds"
-              )
+          const formattedIngredients = (
+            recipe.ingredientsWithQuantities || []
+          ).map((item: any) => ({
+            ...item,
+            isAvailable: combinedIngredients.includes(
+              normalizeToken(item.name)
             ),
-          20000
+          }));
+
+          const missingIngredients = formattedIngredients
+            .filter((item: any) => !item.isAvailable)
+            .map(
+              (item: any) =>
+                `${item.name} (${item.quantity})`
+            );
+
+          return {
+            ...recipe,
+            image: getCanonicalImageForRecipe(recipe.title),
+            pantryItems: formattedIngredients
+              .filter((item: any) => item.isAvailable)
+              .map((item: any) => item.name),
+            ingredientsWithQuantities: formattedIngredients,
+            missingIngredients,
+            matchPercentage: required.length
+              ? Math.round((matched.length / required.length) * 100)
+              : 100,
+            isAIGenerated: false,
+          };
+        })
+        .sort(
+          (a: any, b: any) =>
+            b.matchPercentage - a.matchPercentage
         )
-      );
+        .slice(0, 5);
 
-      return await Promise.race([
-        ai.models.generateContent({
-          model: "gemini-3.8-flash",
-          contents: aiPrompt,
-          config: {
-            responseMimeType: "application/json",
-            systemInstruction,
-          },
-        }),
-        timeoutPromise,
-      ]);
-    } catch (error: any) {
-      lastError = error;
+      return res.json({
+        recipes,
+        source: "maggi-canonical",
+        message: "Showing approved Smart Shelf Maggi recipes.",
+      });
+    }
 
-      const errorText = String(
-        error?.message || error || ""
-      );
+    const ai = getAIClient();
 
-      const isTemporaryError =
-        errorText.includes("503") ||
-        errorText.includes("UNAVAILABLE") ||
-        errorText.includes("high demand") ||
-        errorText.includes("temporarily");
+    if (!ai) {
+      return res.status(503).json({
+        recipes: [],
+        source: "ai-unavailable",
+        message: "Configure GEMINI_API_KEY in your environment.",
+      });
+    }
 
-      if (!isTemporaryError || attempt === attempts) {
-        throw error;
+    const prompt = `
+You are Smart Shelf AI Chef, specializing in authentic Indian
+and South Indian home cooking.
+
+User request: ${query}
+Available ingredients: ${JSON.stringify(availableItems)}
+Requested ingredients: ${JSON.stringify(normalizedIngredients)}
+Cuisine: ${cuisinePreference}
+Diet: ${dietaryPreference}
+
+Rules:
+- Return one to three realistic, recognizable dishes.
+- Prioritize South Indian dishes where appropriate.
+- If chicken and rice are available, Chicken Biryani may be suggested.
+- Do not suggest Maggi in this general recipe path.
+- Do not invent unusual dish names.
+- Ingredient availability must match the provided inventory.
+- Common salt, water and basic spices may be assumed only as
+  optional pantry basics; do not claim they are in inventory.
+- Include missing ingredients explicitly.
+- Give realistic quantities and clear numbered cooking steps.
+- A recipe can use one main ingredient plus basic pantry items.
+- Return JSON only.
+
+Required JSON format:
+{
+  "recipes": [{
+    "title": "Recognizable dish name",
+    "subtitle": "Short description",
+    "description": "Brief description",
+    "cuisine": "Indian",
+    "category": "Dinner",
+    "prepTime": "10 min",
+    "cookTime": "20 min",
+    "estimatedCookingTime": "30 min",
+    "servings": 2,
+    "ingredientsWithQuantities": [
+      {"name": "Tomato", "quantity": "2", "isAvailable": true}
+    ],
+    "steps": [
+      {
+        "stepNumber": 1,
+        "title": "Prepare",
+        "duration": "5 min",
+        "instructions": ["Wash and chop the ingredients."]
       }
+    ],
+    "substitutions": [],
+    "wasteSavingTip": "Use ingredients nearing expiry first."
+  }]
+}`;
 
-      console.warn(
-        `Gemini temporarily unavailable. Retrying (${attempt + 1}/${attempts})...`
-      );
+    const response = await ai.models.generateContent({
+      model: "gemini-3.8-flash",
+      contents: prompt,
+      config: {
+        responseMimeType: "application/json",
+        systemInstruction:
+          "Generate practical recipes. Never invent ingredient availability or nonsensical dish names. Return valid JSON.",
+        temperature: 0.3,
+      },
+    });
 
-      await new Promise((resolve) =>
-        setTimeout(resolve, attempt * 2000)
-      );
-    }
-  }
+    let jsonText = response.text?.trim() || "";
 
-  throw lastError;
-};
-
-const response: any = await generateWithRetry(3);
-
-    let jsonText =
-      response.text?.trim() || "";
-
-    if (jsonText.startsWith("```")) {
-      jsonText = jsonText
-        .replace(/^```(?:json)?\s*/i, "")
-        .replace(/\s*```$/i, "");
-    }
+    jsonText = jsonText
+      .replace(/^```(?:json)?\s*/i, "")
+      .replace(/\s*```$/i, "");
 
     const parsed = JSON.parse(jsonText);
 
@@ -791,354 +925,279 @@ const response: any = await generateWithRetry(3);
       ? parsed
       : Array.isArray(parsed?.recipes)
         ? parsed.recipes
-        : [parsed];
+        : [];
 
     const recipes = rawRecipes
-      .filter(Boolean)
+      .filter((recipe: any) => recipe && typeof recipe === "object")
       .slice(0, 3)
       .map((recipe: any, index: number) => {
-        const ingredientsWithQuantities =
+        const title = String(
+          recipe.title || recipe.recipeName || ""
+        ).trim();
+
+        const formattedIngredients = (
           Array.isArray(recipe.ingredientsWithQuantities)
             ? recipe.ingredientsWithQuantities
-            : [];
+            : []
+        ).map((item: any) => {
+          const name = String(item.name || "").trim();
 
-        const formattedIngredients =
-          ingredientsWithQuantities.map(
-            (item: any) => {
-              const name = String(
-                item.name || ""
-              ).trim();
+          // Compare normalized ingredient names, not Gemini's
+          // untrusted isAvailable value.
+          const token = normalizeToken(name);
 
-              const token =
-                normalizeToken(name);
+          return {
+            name,
+            quantity: String(item.quantity || "as required"),
+            isAvailable: availableItems.some(
+              (available: string) =>
+                available === token ||
+                available.includes(token) ||
+                token.includes(available)
+            ),
+          };
+        });
 
-              const isAvailable =
-                availableItems.includes(token);
+        const availableIngredientsList = formattedIngredients
+          .filter((item: any) => item.isAvailable)
+          .map((item: any) => item.name);
 
-              return {
-                name,
-                quantity: String(
-                  item.quantity || "as required"
-                ),
-                isAvailable,
-              };
-            }
-          );
+        const missingIngredientsList = formattedIngredients
+          .filter((item: any) => !item.isAvailable)
+          .map((item: any) => item.name);
 
-        const availableIngredientsList =
-          formattedIngredients
-            .filter((item: any) =>
-              item.isAvailable
-            )
-            .map((item: any) => item.name);
-
-        const missingIngredientsList =
-          formattedIngredients
-            .filter(
-              (item: any) =>
-                !item.isAvailable
-            )
-            .map((item: any) => item.name);
-
-        const totalIngredients =
-          formattedIngredients.length;
-
-        const availableCount =
-          availableIngredientsList.length;
-
-        const matchPercentage =
-          totalIngredients > 0
-            ? Math.round(
-                (availableCount /
-                  totalIngredients) *
-                  100
-              )
-            : 100;
+        const total = formattedIngredients.length;
 
         return {
           id: `ai-generated-${Date.now()}-${index}`,
-          title:
-            String(
-              recipe.title ||
-                recipe.recipeName ||
-                "AI Kitchen Recipe"
-            ),
-          subtitle:
-            String(
-              recipe.subtitle ||
-                "Created by Smart Shelf AI"
-            ),
-          prepTime:
-            String(
-              recipe.prepTime || "5 min"
-            ),
-          cookTime:
-            String(
-              recipe.cookTime || "15 min"
-            ),
-          estimatedCookingTime:
-            String(
-              recipe.estimatedCookingTime ||
-                ""
-            ),
-          servings:
-            typeof recipe.servings ===
-            "number"
-              ? recipe.servings
-              : 2,
-          description:
-            String(
-              recipe.description ||
-                "A recipe created from your available ingredients."
-            ),
-          cuisine:
-            String(
-              recipe.cuisine ||
-                "Indian"
-            ),
-          category:
-            ["Breakfast", "Lunch", "Dinner", "Snack", "Side"]
-              .includes(recipe.category)
-              ? recipe.category
-              : "Dinner",
-          image:
-            getCanonicalImageForRecipe(
-              String(
-                recipe.title ||
-                  recipe.recipeName ||
-                  "AI Recipe"
-              )
-            ),
+          title: title || "Kitchen Recipe",
+          subtitle: String(recipe.subtitle || "Smart Shelf recipe"),
+          description: String(recipe.description || ""),
+          cuisine: String(recipe.cuisine || "Indian"),
+          category: [
+            "Breakfast",
+            "Lunch",
+            "Dinner",
+            "Snack",
+            "Side",
+          ].includes(recipe.category)
+            ? recipe.category
+            : "Dinner",
+          prepTime: String(recipe.prepTime || "5 min"),
+          cookTime: String(recipe.cookTime || "15 min"),
+          estimatedCookingTime: String(
+            recipe.estimatedCookingTime || ""
+          ),
+          servings: Number(recipe.servings) || 2,
+          image: getCanonicalImageForRecipe(title),
           atRiskIngredients: [],
-          pantryItems:
-            availableIngredientsList,
-          missingIngredients:
-            missingIngredientsList,
-          rescueWeight: "0",
-          moneySaved: "₹0",
-          wasteSavingTip:
-            recipe.wasteSavingTip ||
-            "Use ingredients that are closest to expiry first.",
-          steps:
-            Array.isArray(recipe.steps)
-              ? recipe.steps
-              : [],
-          ingredientsWithQuantities:
-            formattedIngredients,
-          substitutions:
-            Array.isArray(recipe.substitutions)
-              ? recipe.substitutions
-              : [],
+          pantryItems: availableIngredientsList,
+          missingIngredients: missingIngredientsList,
           availableIngredientsList,
           missingIngredientsList,
-          matchPercentage,
+          ingredientsWithQuantities: formattedIngredients,
+          steps: Array.isArray(recipe.steps) ? recipe.steps : [],
+          substitutions: Array.isArray(recipe.substitutions)
+            ? recipe.substitutions
+            : [],
+          rescueWeight: "0",
+          moneySaved: "₹0",
+          wasteSavingTip: String(
+            recipe.wasteSavingTip ||
+              "Use ingredients that are closest to expiry first."
+          ),
+          matchPercentage: total
+            ? Math.round(
+                (availableIngredientsList.length / total) * 100
+              )
+            : 100,
           isAIGenerated: true,
         };
-      });
+      })
+      .filter((recipe: any) => recipe.title);
 
-    if (recipes.length > 0) {
+    if (recipes.length) {
       return res.json({
         recipes,
         source: "gemini-ai",
-        message:
-          `Gemini generated ${recipes.length} recipe${recipes.length === 1 ? "" : "s"}.`,
+        message: `Gemini generated ${recipes.length} recipe(s).`,
       });
     }
 
     return res.status(502).json({
       recipes: [],
       source: "gemini-ai",
-      message:
-        "Gemini did not return a usable recipe.",
+      message: "Gemini did not return a usable recipe.",
     });
   } catch (error: any) {
     console.error(
-      "Gemini dynamic recipe generation failed:",
+      "Recipe generation failed:",
       error?.message || error
     );
 
-    // Gemini can temporarily return 503 when the model is busy.
-    // Keep Generate with AI usable with the verified Smart Shelf recipes.
+    // Verified catalog fallback.
     try {
-      const fallbackCandidates = CANONICAL_RECIPES.filter((recipe) => {
-        const required = Array.isArray(recipe.normalizedRequired)
-          ? recipe.normalizedRequired
-          : [];
+      const availableItems = normalizeList(
+        Array.isArray(req.body.userInventory) &&
+          req.body.userInventory.length
+          ? req.body.userInventory
+          : Array.isArray(req.body.ingredients)
+            ? req.body.ingredients
+            : []
+      );
 
-        return required.some((ingredient: string) =>
-          availableItems.includes(normalizeToken(ingredient))
-        );
-      });
-
-      const rankedFallback = fallbackCandidates
-        .map((recipe) => {
-          const required = Array.isArray(recipe.normalizedRequired)
-            ? recipe.normalizedRequired
-            : [];
-
-          const matched = required.filter((ingredient: string) =>
-            availableItems.includes(normalizeToken(ingredient))
+      const fallbackRecipes = CANONICAL_RECIPES
+        .map((recipe: any) => {
+          const required = (recipe.normalizedRequired || []).map(
+            normalizeToken
           );
 
-          const matchPercentage =
-            required.length > 0
-              ? Math.round((matched.length / required.length) * 100)
-              : 0;
+          const matched = required.filter((item: string) =>
+            availableItems.includes(item)
+          );
 
           return {
-            recipe,
-            matchPercentage,
+            ...recipe,
+            image: getCanonicalImageForRecipe(recipe.title),
+            matchPercentage: required.length
+              ? Math.round((matched.length / required.length) * 100)
+              : 0,
+            pantryItems: matched,
+            availableIngredientsList: matched,
+            missingIngredientsList: required.filter(
+              (item: string) => !availableItems.includes(item)
+            ),
+            isAIGenerated: false,
           };
         })
-        .filter((item) => item.matchPercentage > 0)
+        .filter((recipe: any) => recipe.matchPercentage > 0)
         .sort(
-          (a, b) => b.matchPercentage - a.matchPercentage
+          (a: any, b: any) =>
+            b.matchPercentage - a.matchPercentage
         )
         .slice(0, 5);
 
-      const fallbackRecipes = rankedFallback.map(
-        ({ recipe, matchPercentage }) => ({
-          ...recipe,
-          image: getCanonicalImageForRecipe(recipe.title),
-          availableIngredientsList:
-            recipe.normalizedRequired?.filter((ingredient: string) =>
-              availableItems.includes(normalizeToken(ingredient))
-            ) || [],
-          missingIngredientsList:
-            recipe.normalizedRequired?.filter((ingredient: string) =>
-              !availableItems.includes(normalizeToken(ingredient))
-            ) || [],
-          matchPercentage,
-          isAIGenerated: false,
-        })
-      );
-
-      if (fallbackRecipes.length > 0) {
+      if (fallbackRecipes.length) {
         return res.json({
           recipes: fallbackRecipes,
           source: "smart-shelf-fallback",
           message:
-            "Gemini is temporarily unavailable. Showing verified Smart Shelf recipes.",
+            "AI is temporarily unavailable. Showing catalog recipes.",
         });
       }
-    } catch (fallbackError: any) {
-      console.error(
-        "Smart Shelf fallback failed:",
-        fallbackError?.message || fallbackError
-      );
+    } catch (fallbackError) {
+      console.error("Recipe fallback failed:", fallbackError);
     }
 
     return res.status(502).json({
       recipes: [],
       source: "gemini-error",
       message:
-        "Gemini is temporarily unavailable and no verified fallback recipe was found.",
+        "AI is temporarily unavailable and no matching catalog recipe was found.",
     });
   }
 });
 
+// =====================================================
+// RECIPE RECOMMENDATIONS
+// =====================================================
+
 app.post("/api/recipes/recommend", async (req, res) => {
-  const { availableItems, preferredCuisine } = req.body;
+  const {
+    availableItems = [],
+    preferredCuisine = "South Indian",
+  } = req.body;
 
   const ai = getAIClient();
+
   if (ai) {
     try {
-      const prompt = `Based on these available kitchen inventory items: ${JSON.stringify(availableItems || ["Tomatoes", "Coriander", "Toor Dal", "Carrots", "Coconut", "Mustard Seeds", "Curry Leaves"])}, recommend 3 authentic ${preferredCuisine || "South Indian"} zero-waste recipes prioritizing items closest to expiration. Return JSON.`;
-
       const response = await ai.models.generateContent({
         model: "gemini-3.8-flash",
-        contents: prompt,
+        contents: `Recommend three realistic zero-waste recipes.
+Available ingredients: ${JSON.stringify(availableItems)}
+Preferred cuisine: ${preferredCuisine}
+Prioritize ingredients closest to expiry.
+Return JSON array only.`,
         config: {
           responseMimeType: "application/json",
-          systemInstruction: `You are an AI kitchen manager specialized in South Indian zero-waste cooking.
-Provide an array of recipes with title, prepTime, description, rescuedIngredients (list with urgency), pantryItems, missingIngredients (if any), and difficulty.`,
+          systemInstruction:
+            "You are a South Indian kitchen manager. Return recipes with title, prepTime, description, rescuedIngredients, pantryItems, missingIngredients and difficulty.",
+          temperature: 0.3,
         },
       });
 
       const parsed = JSON.parse(response.text || "[]");
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        return res.json({ recipes: parsed, source: "gemini-ai" });
+
+      if (Array.isArray(parsed) && parsed.length) {
+        return res.json({
+          recipes: parsed,
+          source: "gemini-ai",
+        });
       }
     } catch (error: any) {
-      console.warn("Gemini recipe recommendation error, falling back:", error?.message || error);
+      console.warn(
+        "Recommendation AI failed:",
+        error?.message || error
+      );
     }
   }
 
-  // Pre-configured rich South Indian authentic recipes matching the exact designs
   return res.json({
-    recipes: [
-      {
-        id: "tomato-rasam",
-        title: "Tomato Rasam",
-        subtitle: "Tangy Tomato Rasam (Lemon Infused)",
-        prepTime: "25 min",
-        servings: 4,
-        description: "A comforting, tangy South Indian soup perfect for clearing out overripe tomatoes.",
-        atRiskIngredients: [
-          { name: "Tomatoes", urgency: "2 days", status: "critical" },
-          { name: "Cilantro", urgency: "1 day", status: "urgent" },
-        ],
-        pantryItems: ["Mustard Seeds", "Curry Leaves", "Hing", "Pepper & Cumin"],
-        missingIngredients: [],
-        rescueWeight: "560g",
-        moneySaved: "₹185",
-        image: "https://images.unsplash.com/photo-1546833999-b9f581a1996d?w=800&auto=format&fit=crop&q=80",
-      },
-      {
-        id: "veg-poriyal",
-        title: "Vegetable Poriyal",
-        prepTime: "20 min",
-        servings: 3,
-        description: "A quick stir-fry of mixed vegetables finished with fresh coconut.",
-        pantryItems: ["Carrots", "Green Beans", "Coconut", "Urad Dal"],
-        atRiskIngredients: [
-          { name: "Carrots", urgency: "3 days", status: "warning" },
-          { name: "Fresh Grated Coconut", urgency: "16h left", status: "urgent" },
-        ],
-        missingIngredients: [],
-        rescueWeight: "400g",
-        moneySaved: "₹95",
-        image: "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=800&auto=format&fit=crop&q=80",
-      },
-      {
-        id: "veg-sambar",
-        title: "Mixed Vegetable Sambar",
-        prepTime: "30 min",
-        servings: 5,
-        description: "A staple South Indian lentil stew packed with drumsticks, carrots, and shallots.",
-        pantryItems: ["Toor Dal", "Tamarind", "Drumstick", "Sambar Powder"],
-        atRiskIngredients: [
-          { name: "Sambar Onions (Shallots)", urgency: "2 days", status: "warning" },
-        ],
-        missingIngredients: ["Drumstick"],
-        rescueWeight: "650g",
-        moneySaved: "₹140",
-        image: "https://images.unsplash.com/photo-1626777552726-4a6b54c97e46?w=800&auto=format&fit=crop&q=80",
-      },
-    ],
+    recipes: CANONICAL_RECIPES
+      .slice(0, 3)
+      .map((recipe: any) => ({
+        ...recipe,
+        image: getCanonicalImageForRecipe(recipe.title),
+      })),
     source: "smart-shelf-catalog",
   });
 });
 
-// Vite middleware & Static serving
+// =====================================================
+// START SERVER — CONNECT TO MONGODB FIRST
+// =====================================================
+
 async function startServer() {
+  const mongoUri = process.env.MONGODB_URI;
+
+  if (!mongoUri) {
+    throw new Error(
+      "MONGODB_URI is missing. Add your MongoDB Atlas connection string to .env."
+    );
+  }
+
+  await mongoose.connect(mongoUri);
+
+  console.log("MongoDB connected successfully.");
+
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: "spa",
     });
+
     app.use(vite.middlewares);
   } else {
-    const distPath = path.join(process.cwd(), "dist");
+    const distPath = path.join(__dirname, "dist");
+
     app.use(express.static(distPath));
-    app.get("*", (_req, res) => {
+
+    // IMPORTANT: Frontend fallback must be LAST.
+    // API routes above must always respond before this handler.
+    app.get(/.*/, (_req, res) => {
       res.sendFile(path.join(distPath, "index.html"));
     });
   }
 
   app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Smart Shelf Server running at http://0.0.0.0:${PORT}`);
+    console.log(
+      `Smart Shelf Server running at http://0.0.0.0:${PORT}`
+    );
   });
 }
 
-startServer();
+startServer().catch((error) => {
+  console.error("Failed to start Smart Shelf:", error);
+  process.exit(1);
+});
