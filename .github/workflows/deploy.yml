@@ -28,14 +28,16 @@ jobs:
         with:
           node-version: 20
 
+      
       - name: Install dependencies
         run: npm install
 
-            - name: Build project
+      - name: Build project
         run: npm run build -- --base=/smart-shelf-ai-kitchen-manager-recipe-recommendation-system/
 
       - name: Setup Pages
         uses: actions/configure-pages@v4
+
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
