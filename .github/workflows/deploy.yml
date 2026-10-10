@@ -31,8 +31,8 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Build project
-        run: npx vite build
+            - name: Build project
+        run: npm run build -- --base=/smart-shelf-ai-kitchen-manager-recipe-recommendation-system/
 
       - name: Setup Pages
         uses: actions/configure-pages@v4
