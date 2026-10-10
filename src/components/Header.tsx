@@ -48,14 +48,32 @@ export const Header: React.FC = () => {
       .map((i) => ({ type: 'inventory' as const, item: i, title: i.name, sub: `${i.quantity} ${i.unit} in ${i.location}` }));
 
     const recipeResults = matchRecipesWithInput(searchQuery, recipes, inventory);
-    const combined = [...recipeResults.canMakeNow, ...recipeResults.almostReady];
-    const recipeMatches = combined.slice(0, 5).map(({ recipe, matchPercentage }) => ({
-      type: 'recipe' as const,
-      recipe,
-      title: recipe.title,
-      sub: `${matchPercentage}% Match • ${recipe.cuisine}`,
-    }));
+    ```ts
+const combined = [
+  ...recipeResults.canMakeNow,
+  ...recipeResults.almostReady,
+];
 
+const generated = recipeResults.generatedRecipe;
+
+const recipeMatches = [
+  ...combined.slice(0, 5).map(({ recipe, matchPercentage }) => ({
+    type: 'recipe' as const,
+    recipe,
+    title: recipe.title,
+   sub: String(matchPercentage) + '% Match • ' + recipe.cuisine,
+  ...(generated
+    ? [
+        {
+          type: 'recipe' as const,
+          recipe: generated,
+          title: generated.title,
+          sub: 'Suggested recipe',
+        },
+      ]
+    : []),
+];
+```
     return [...invMatches.slice(0, 3), ...recipeMatches];
   }, [searchQuery, inventory, recipes]);
 
