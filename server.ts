@@ -363,28 +363,6 @@ app.get("/api/auth/me", async (req, res) => {
 // GET USER'S OWN INVENTORY AND DATA
 // =====================================================
 
-app.get("/api/user/data", async (req, res) => {
-  try {
-    const user = await getUserByToken(getToken(req));
-
-    if (!user) {
-      return res.status(401).json({ error: "Unauthorized" });
-    }
-
-    return res.json(getStoredData(user));
-  } catch (error) {
-    console.error("User data read failed:", error);
-
-    return res.status(500).json({
-      error: "Unable to load kitchen data.",
-    });
-  }
-});
-
-// =====================================================
-// SAVE USER'S OWN DATA
-// =====================================================
-
 app.post("/api/user/sync", async (req, res) => {
   try {
     const user = await getUserByToken(getToken(req));
@@ -393,28 +371,26 @@ app.post("/api/user/sync", async (req, res) => {
       return res.status(401).json({ error: "Unauthorized" });
     }
 
-    const allowedFields = [
-      "inventory",
-      "wasteRecords",
-      "shoppingItems",
-      "chefHistory",
-      "preferences",
-    ] as const;
-
-    const updates: Record<string, unknown> = {};
-
-    for (const field of allowedFields) {
-      if (req.body[field] !== undefined) {
-        updates[`data.${field}`] = req.body[field];
-      }
+    // Map incoming frontend keys directly to your database fields
+    if (req.body.inventory !== undefined) {
+      user.data.inventory = req.body.inventory;
+    }
+    if (req.body.wasteRecords !== undefined) {
+      user.data.wasteRecords = req.body.wasteRecords;
+    }
+    if (req.body.shoppingItems !== undefined) {
+      user.data.shoppingItems = req.body.shoppingItems;
+    }
+    if (req.body.chefHistory !== undefined) {
+      user.data.chefHistory = req.body.chefHistory;
+    }
+    if (req.body.preferences !== undefined) {
+      user.data.preferences = req.body.preferences;
     }
 
-    if (Object.keys(updates).length > 0) {
-      await User.updateOne(
-        { _id: user._id },
-        { $set: updates }
-      );
-    }
+    // Mark the mixed/nested data field as modified so Mongoose saves it
+    user.markModified('data');
+    await user.save();
 
     return res.json({ success: true });
   } catch (error) {
